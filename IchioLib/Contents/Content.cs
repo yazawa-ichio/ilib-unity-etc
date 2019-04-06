@@ -36,8 +36,8 @@ namespace ILib.Contents
 			IDispatcher IHasDispatcher.Dispatcher => m_content.Dispatcher;
 		}
 
-		Content m_Parent;
-		ContentsController m_Controller;
+		protected Content Parent { get; private set; }
+		protected ContentsController Controller { get; private set; }
 		LockCollection<Content> m_Children = new LockCollection<Content>();
 
 		public bool HasChildren => m_Children.Count > 0;
@@ -52,25 +52,27 @@ namespace ILib.Contents
 		public IDispatcher Dispatcher { get; private set; }
 		public ModuleCollection Modules { get; private set; }
 
-		UnityEngine.MonoBehaviour IHasRoutineOwner.RoutineOwner => m_Controller;
+		UnityEngine.MonoBehaviour IHasRoutineOwner.RoutineOwner => Controller;
 
 		protected virtual IEnumerator OnBoot() { yield break; }
 		protected virtual IEnumerator OnEnable() { yield break; }
 		protected virtual IEnumerator OnRun() { yield break; }
+		protected virtual void OnCompleteRun() { }
 		protected virtual IEnumerator OnSuspend() { yield break; }
 		protected virtual IEnumerator OnDisable() { yield break; }
+		protected virtual void OnPreShutdown() { }
 		protected virtual IEnumerator OnShutdown() { yield break; }
 
 		IRoutine<bool> _Routine(IEnumerator enumerator)
 		{
-			var routine = m_Controller.Routine(enumerator);
+			var routine = Controller.Routine(enumerator);
 			if (IsSelfThrowErrorIfNeeded) routine.AddFail(ThrowException);
 			return routine;
 		}
 
 		IRoutine<T> _Routine<T>(IEnumerator enumerator)
 		{
-			var routine = m_Controller.TaskRoutine<T>(enumerator);
+			var routine = Controller.TaskRoutine<T>(enumerator);
 			if (IsSelfThrowErrorIfNeeded) routine.AddFail(ThrowException);
 			return routine;
 		}
@@ -89,7 +91,7 @@ namespace ILib.Contents
 		{
 			var content = (Content)Activator.CreateInstance(type);
 			m_Children.Add(content);
-			return _Routine<IContentRef>(content.Boot(m_Controller, this, prm));
+			return _Routine<IContentRef>(content.Boot(Controller, this, prm));
 		}
 
 		protected IRoutine<bool> Resume() => _Routine(DoRun());
@@ -109,12 +111,12 @@ namespace ILib.Contents
 		void PreBoot(ContentsController controller, Content parent, object prm)
 		{
 			Param = prm;
-			m_Controller = controller;
-			m_Parent = parent;
-			Call = m_Parent != null ? m_Parent.Call.SubCall() : m_Controller.SubCall();
+			Controller = controller;
+			Parent = parent;
+			Call = Parent != null ? Parent.Call.SubCall() : Controller.SubCall();
 			Call.Bind(this);
 			Dispatcher = new Dispatcher(Call);
-			Modules = m_Parent != null ? new ModuleCollection(m_Parent.Modules) : new ModuleCollection(m_Controller.Modules);
+			Modules = Parent != null ? new ModuleCollection(Parent.Modules) : new ModuleCollection(Controller.Modules);
 		}
 
 		internal IEnumerator Boot(ContentsController controller, Content parent, object prm)
@@ -156,6 +158,7 @@ namespace ILib.Contents
 				yield return DoEnable();
 				yield return OnRun();
 				if (HasModule(ModuleType.Run)) yield return Modules.OnRun(this);
+				OnCompleteRun();
 			}
 		}
 
@@ -192,7 +195,7 @@ namespace ILib.Contents
 		{
 			m_Shutdown = true;
 			Call.Dispose();
-			m_Parent?.m_Children.Remove(this);
+			Parent?.m_Children.Remove(this);
 			//ブートシーケンスだけは待つ
 			while (m_TransLock.IsLock(TransLockFlag.Boot))
 			{
@@ -200,6 +203,7 @@ namespace ILib.Contents
 			}
 			using (m_TransLock.Lock(TransLockFlag.Shutdown))
 			{
+				OnPreShutdown();
 				if (HasModule(ModuleType.PreShutdown)) yield return Modules.OnPreShutdown(this);
 				foreach (var child in m_Children)
 				{
@@ -213,7 +217,7 @@ namespace ILib.Contents
 		IEnumerator DoSwitch(Type type, object prm)
 		{
 			var next = (Content)Activator.CreateInstance(type);
-			next.PreBoot(m_Controller, m_Parent, prm);
+			next.PreBoot(Controller, Parent, prm);
 
 			if (HasModule(ModuleType.PreSwitch)) yield return Modules.OnPreSwitch(this, next);
 
@@ -273,13 +277,13 @@ namespace ILib.Contents
 			}
 			catch (Exception e)
 			{
-				m_Controller.ThrowException(exception);
+				Controller.ThrowException(exception);
 				throw e;
 			}
 			
 			if (!ret)
 			{
-				m_Controller.ThrowException(exception);
+				Controller.ThrowException(exception);
 			}
 		}
 

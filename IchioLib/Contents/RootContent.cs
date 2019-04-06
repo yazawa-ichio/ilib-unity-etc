@@ -8,6 +8,12 @@ namespace ILib.Contents
 	{
 		public bool ParallelBoot { get; set; }
 		public List<IContentParam> BootContents { get; set; } = new List<IContentParam>();
+
+		public void Add<T>(object prm = null) where T : Content
+		{
+			BootContents.Add(SimpleParam.Create<T>(prm));
+		}
+
 	}
 
 	public class RootContent : Content<RootParam>

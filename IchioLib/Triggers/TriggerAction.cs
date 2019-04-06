@@ -69,7 +69,7 @@ namespace ILib
 
 		public TriggerAction(bool oneshot = true) => m_OneShot = oneshot;
 
-		internal void Fire(T ret, Exception ex)
+		internal protected void Fire(T ret, Exception ex)
 		{
 			if (Fired && m_OneShot)
 			{
