@@ -10,7 +10,7 @@ namespace ILib
 		{
 			foreach (var action in actions)
 			{
-				while (action.Fired) yield return null;
+				while (!action.Fired) yield return null;
 			}
 		}
 
@@ -18,7 +18,7 @@ namespace ILib
 		{
 			foreach (var action in actions)
 			{
-				while (action.Fired) yield return null;
+				while (!action.Fired) yield return null;
 			}
 		}
 	}
