@@ -28,7 +28,7 @@ public class ContentsTest
 
 		public IEnumerator Close()
 		{
-			return Controller.Shutdown().Action.Wait();
+			return Controller.Shutdown();
 		}
 
 		public void Dispose()
@@ -82,25 +82,29 @@ public class ContentsTest
 			Append,
 		}
 
-		protected override IEnumerator OnBoot()
+		protected override ITriggerAction OnBoot()
 		{
 			if (Param.BootWait > 0)
 			{
-				yield return new WaitForSeconds(Param.BootWait);
+				return AsyncTrigger.Time(Param.BootWait).Add(x =>
+				{
+					Param.Counter.Add("Boot");
+				});
 			}
 			Param.Counter.Add("Boot");
+			return Trigger.Successed;
 		}
 
-		protected override IEnumerator OnEnable()
+		protected override ITriggerAction OnEnable()
 		{
 			Param.Counter.Add("Enable");
-			yield break;
+			return Trigger.Successed;
 		}
 
-		protected override IEnumerator OnRun()
+		protected override ITriggerAction OnRun()
 		{
 			Param.Counter.Add("Run");
-			yield break;
+			return Trigger.Successed;
 		}
 
 		[Handle(Event.Switch)]
@@ -133,11 +137,6 @@ public class ContentsTest
 			Shutdown,
 		}
 
-		protected override IEnumerator OnRun()
-		{
-			return base.OnRun();
-		}
-
 		[Handle(Event.Count)]
 		void OnEventCount(string key)
 		{
@@ -164,7 +163,7 @@ public class ContentsTest
 		using (var tester = new Tester())
 		{
 			var counter = new Counter();
-			RootParam prm = new RootParam();
+			BootParam prm = new BootParam();
 			prm.BootContents.Add(new MainTestParam { Counter = counter });
 			tester.Controller.Boot(prm);
 			yield return counter.Wait("Run", 1);
@@ -181,7 +180,7 @@ public class ContentsTest
 		{
 			//逐次起動
 			var counter = new Counter();
-			RootParam prm = new RootParam();
+			BootParam prm = new BootParam();
 			const int num = 5;
 			for (int i = 0; i < num; i++)
 			{
@@ -209,7 +208,7 @@ public class ContentsTest
 		using (var tester = new Tester())
 		{
 			var counter = new Counter();
-			RootParam prm = new RootParam();
+			BootParam prm = new BootParam();
 			prm.ParallelBoot = true;
 			const int num = 5;
 			for (int i = 0; i < num; i++)
@@ -235,7 +234,7 @@ public class ContentsTest
 		using (var tester = new Tester())
 		{
 			var counter = new Counter();
-			RootParam prm = new RootParam();
+			BootParam prm = new BootParam();
 			prm.BootContents.Add(new MainTestParam { Counter = counter });
 			yield return tester.Controller.Boot(prm);
 			tester.Message(MainTestContent.Event.Switch, counter);
@@ -250,7 +249,7 @@ public class ContentsTest
 		using (var tester = new Tester())
 		{
 			var counter = new Counter();
-			RootParam prm = new RootParam();
+			BootParam prm = new BootParam();
 			prm.BootContents.Add(new MainTestParam { Counter = counter });
 			yield return tester.Controller.Boot(prm);
 			//Refからのスイッチ
@@ -269,7 +268,7 @@ public class ContentsTest
 		using (var tester = new Tester())
 		{
 			var counter = new Counter();
-			RootParam prm = new RootParam();
+			BootParam prm = new BootParam();
 			prm.BootContents.Add(new MainTestParam { Counter = counter });
 			yield return tester.Controller.Boot(prm);
 			tester.Message(MainTestContent.Event.Switch, counter);
@@ -284,7 +283,7 @@ public class ContentsTest
 		using (var tester = new Tester())
 		{
 			var counter = new Counter();
-			RootParam prm = new RootParam();
+			BootParam prm = new BootParam();
 			prm.BootContents.Add(new MainTestParam { Counter = counter });
 			yield return tester.Controller.Boot(prm);
 			var content = tester.Controller.Get<MainTestContent>();

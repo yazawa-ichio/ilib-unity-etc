@@ -80,6 +80,9 @@ namespace ILib.Caller
 
 	}
 
+	/// <summary>
+	/// Callに登録したオブジェクトのハンドルです。
+	/// </summary>
 	public class Handle : IDisposable
 	{
 		List<IPath> m_Paths = new List<IPath>();

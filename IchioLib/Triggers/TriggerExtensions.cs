@@ -7,17 +7,17 @@ namespace ILib
 
 	public static class TriggerExtensions
 	{
-		public static ITriggerAction<T> Add<T>(this ITrigger<T> self, Action<T> action)
+		public static ITriggerAction<T> Add<T>(this IHasTriggerAction<T> self, Action<T> action)
 		{
 			return self.Action.Add(action);
 		}
 
-		public static ITriggerAction<T> Add<T>(this ITrigger<T> self, Action<T, Exception> action)
+		public static ITriggerAction<T> Add<T>(this IHasTriggerAction<T> self, Action<T, Exception> action)
 		{
 			return self.Action.Add(action);
 		}
 
-		public static ITriggerAction<T> Add<T>(this ITrigger<T> self, Trigger<T> trigger) => self.Action.Add(trigger);
+		public static ITriggerAction<T> Add<T>(this IHasTriggerAction<T> self, Trigger<T> trigger) => self.Action.Add(trigger);
 
 		public static ITriggerAction<T> Add<T>(this ITriggerAction<T> self, Trigger<T> trigger)
 		{
@@ -26,17 +26,25 @@ namespace ILib
 			return self;
 		}
 
-		public static ITriggerAction<T> AddFail<T>(this ITrigger<T> self, Action<Exception> action)
+		public static ITriggerAction<T> AddFail<T>(this IHasTriggerAction<T> self, Action<Exception> action)
 		{
 			return self.Action.AddFail(action);
 		}
 
-		public static IEnumerator Wait<T>(this ITrigger<T> self)
+		public static IEnumerator Wait<T>(this IHasTriggerAction<T> self)
 		{
-			return self.Action.Wait();
+			return self.Action;
 		}
 
-		public static ITriggerAction<U> Select<T, U>(this ITrigger<T> self, Func<T, U> func, bool oneShot = true)
+		public static ITriggerAction<T> Select<T>(this ITriggerAction self, Func<T> func, bool oneShot = true)
+		{
+			Trigger<T> trigger = new Trigger<T>(oneShot: self.OneShot);
+			self.OnFail += trigger.Error;
+			self.Add(() => trigger.Fire(func()));
+			return trigger.Action;
+		}
+
+		public static ITriggerAction<U> Select<T, U>(this IHasTriggerAction<T> self, Func<T, U> func, bool oneShot = true)
 		{
 			return self.Action.Select(func, oneShot);
 		}
@@ -58,7 +66,7 @@ namespace ILib
 			return trigger.Action;
 		}
 
-		public static ITriggerAction<T> Where<T>(this ITrigger<T> self, Func<T, bool> func)
+		public static ITriggerAction<T> Where<T>(this IHasTriggerAction<T> self, Func<T, bool> func)
 		{
 			return self.Action.Where(func);
 		}
@@ -80,9 +88,9 @@ namespace ILib
 			return trigger.Action;
 		}
 
-		public static ITriggerAction<bool> Any<T>(this ITrigger<T> self)
+		public static ITriggerAction<bool> Any<T>(this IHasTriggerAction<T> self)
 		{
-			return self.Any();
+			return self.Action.Any();
 		}
 
 		public static ITriggerAction<bool> Any<T>(this ITriggerAction<T> self)
@@ -98,7 +106,7 @@ namespace ILib
 			return trigger.Action;
 		}
 
-		public static ITriggerAction<T> Then<T>(this ITrigger<ITriggerAction<T>> self)
+		public static ITriggerAction<T> Then<T>(this IHasTriggerAction<ITriggerAction<T>> self)
 		{
 			return self.Action.Then();
 		}
@@ -130,7 +138,17 @@ namespace ILib
 			return trigger.Action;
 		}
 
-		public static ITriggerAction<T> Time<T>(this ITrigger<T> self, float time)
+		public static ITriggerAction<U> Then<T, U>(this IHasTriggerAction<T> self, Func<T, ITriggerAction<U>> func, bool oneShot = true)
+		{
+			return self.Select(func, oneShot: oneShot).Then();
+		}
+
+		public static ITriggerAction<U> Then<T, U>(this ITriggerAction<T> self, Func<T, ITriggerAction<U>> func, bool oneShot = true)
+		{
+			return self.Select(func, oneShot: oneShot).Then();
+		}
+
+		public static ITriggerAction<T> Time<T>(this IHasTriggerAction<T> self, float time)
 		{
 			return self.Action.Time(time);
 		}
@@ -154,7 +172,7 @@ namespace ILib
 			return trigger.Action;
 		}
 
-		public static ITriggerAction<T> Realtime<T>(this ITrigger<T> self, float time)
+		public static ITriggerAction<T> Realtime<T>(this IHasTriggerAction<T> self, float time)
 		{
 			return self.Action.Realtime(time);
 		}

@@ -2,34 +2,36 @@
 
 namespace ILib.Contents
 {
-	using Flag = Content.TransLockFlag;
 
 	internal class TransLock
 	{
-		Flag m_Flag;
-		public bool IsLock() => m_Flag != 0;
-		public bool IsLock(Flag flag) => m_Flag.HasFlag(flag);
+		TransLockFlag m_Flag;
 
-		public IDisposable Lock(Flag flag)
+		public bool IsLock() => m_Flag != 0;
+
+		public bool IsLock(TransLockFlag flag) => (m_Flag & flag) > 0;
+
+		public IDisposable Lock(TransLockFlag flag)
 		{
-			if (IsLock(Flag.Shutdown)) throw new InvalidOperationException("already Shutdown AppContext");
+			if (IsLock(TransLockFlag.Shutdown)) throw new InvalidOperationException("already Shutdown AppContext");
 			if (IsLock(flag)) throw new InvalidOperationException("already locked:" + flag);
 			return new LockState(this, flag);
 		}
 
 		public class LockState : IDisposable
 		{
-			TransLock m_transLock;
-			Flag m_flag;
-			public LockState(TransLock transLock, Flag flag)
+			TransLock m_TransLock;
+			TransLockFlag m_Flag;
+			public LockState(TransLock transLock, TransLockFlag flag)
 			{
-				m_transLock = transLock;
-				m_flag = flag;
+				m_TransLock = transLock;
+				m_Flag = flag;
 			}
+
 			public void Dispose()
 			{
-				m_transLock.m_Flag = m_transLock.m_Flag & m_flag;
-				m_transLock = null;
+				m_TransLock.m_Flag = m_TransLock.m_Flag & m_Flag;
+				m_TransLock = null;
 			}
 		}
 

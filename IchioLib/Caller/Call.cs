@@ -4,9 +4,15 @@ using System.Collections.Generic;
 
 namespace ILib.Caller
 {
-
+	/// <summary>
+	/// 登録したイベントの呼び出し手続きを行うクラスです。
+	/// 階層構造を持つことが出来ます。
+	/// </summary>
 	public class Call : IDisposable, IDispatcher
 	{
+		/// <summary>
+		/// 実際に利用する文字列型のキーに変換します。
+		/// </summary>
 		public static string ToKey(object key)
 		{
 			if (key is string)
@@ -22,14 +28,23 @@ namespace ILib.Caller
 		Call m_Parent;
 		List<Call> m_Calls;
 		List<PathBase> m_Paths = new List<PathBase>();
-		bool m_Getting = false;
+		int m_RemoveLock = 0;
 		List<PathBase> m_Removes = new List<PathBase>();
 		bool m_Enabled = true;
-		int m_Priority = 0;
 		object m_Locker = new object();
 
-		public int Priority { get { return m_Priority; } set { m_Priority = value; m_Parent?.SortCall(); } }
+		public bool InvokeBeforChild { get; set; } = true;
+
+		/// <summary>
+		/// イベントの発火が可能か？
+		/// false時はイベントが発火されません。
+		/// </summary>
 		public bool Enabled { get { return m_Enabled && !Disposed; } set { m_Enabled = value; } }
+
+		/// <summary>
+		/// 解放済みか？
+		/// 解放後はイベントの発火および登録が出来なくなります。
+		/// </summary>
 		public bool Disposed { get; private set; }
 
 		~Call()
@@ -37,6 +52,9 @@ namespace ILib.Caller
 			Dispose();
 		}
 
+		/// <summary>
+		/// 子のコールを生成します。
+		/// </summary>
 		public Call SubCall()
 		{
 			Call call = new Call();
@@ -45,13 +63,18 @@ namespace ILib.Caller
 				call.m_Parent = this;
 				if (m_Calls == null)
 				{
-					//優先度を処理するため自身をリストに含める
 					m_Calls = new List<Call>(4);
-					m_Calls.Add(this);
+				}
+				for (int i = 0; i < m_Calls.Count; i++)
+				{
+					if (m_Calls[i] == null)
+					{
+						m_Calls[i] = call;
+						return call;
+					}
 				}
 				m_Calls.Add(call);
 			}
-			SortCall();
 			return call;
 		}
 
@@ -59,15 +82,18 @@ namespace ILib.Caller
 		{
 			lock (m_Locker)
 			{
-				m_Calls.Remove(call);
+				//要素の長さは変えない
+				var index = m_Calls.IndexOf(call);
+				if (index >= 0)
+				{
+					m_Calls[index] = call;
+				}
 			}
 		}
 
-		void SortCall()
-		{
-			m_Calls.Sort((x1, x2) => x2.Priority - x1.Priority);
-		}
-
+		/// <summary>
+		/// イベントの解除を行います。
+		/// </summary>
 		public void Dispose()
 		{
 			m_Parent?.Remove(this);
@@ -83,6 +109,10 @@ namespace ILib.Caller
 			}
 		}
 
+		/// <summary>
+		/// イベントを登録します。
+		/// 解除する場合は、返り値のオブジェクトを解放してください。
+		/// </summary>
 		public IPath Path(object key, Action action)
 		{
 			var path = new Path(this, ToKey(key), () =>
@@ -94,6 +124,10 @@ namespace ILib.Caller
 			return path;
 		}
 
+		/// <summary>
+		/// イベントを登録します。
+		/// 解除する場合は、返り値のオブジェクトを解放してください。
+		/// </summary>
 		public IPath Path<T>(object key, Action<T> action)
 		{
 			var path = new Path<T>(this, ToKey(key), (item) =>
@@ -105,6 +139,10 @@ namespace ILib.Caller
 			return path;
 		}
 
+		/// <summary>
+		/// トリガーとしてイベントを登録します。
+		/// 解除する場合は、トリガーのキャンセルを実行してください。
+		/// </summary>
 		public ITriggerAction<T> Trigger<T>(object key)
 		{
 			if (Disposed) return TriggerAction<T>.Empty;
@@ -119,6 +157,10 @@ namespace ILib.Caller
 			return trigger.Action;
 		}
 
+		/// <summary>
+		/// トリガーとしてイベントを登録します。
+		/// 解除する場合は、トリガーのキャンセルを実行してください。
+		/// </summary>
 		public ITriggerAction<bool> Trigger(object key)
 		{
 			if (Disposed) return TriggerAction<bool>.Empty;
@@ -133,6 +175,11 @@ namespace ILib.Caller
 			return trigger.Action;
 		}
 
+		/// <summary>
+		/// 指定のオブジェクトをイベントを登録します。
+		/// イベントはHandle属性を利用して設定します。
+		/// 解除する場合は、返り値のオブジェクトを解放してください。
+		/// </summary>
 		public Handle Bind(object handler)
 		{
 			if (Disposed) return new Handle();
@@ -158,147 +205,255 @@ namespace ILib.Caller
 			return handle;
 		}
 
+		/// <summary>
+		/// イベントを実行します。
+		/// イベントを受け取ったパスがあるとそこで処理が終わります。
+		/// イベントが受け取られたかは返り値で判断できます。
+		/// </summary>
 		public bool Message(object key) => Disposed ? false : Message(ToKey(key));
 
+		/// <summary>
+		/// イベントを実行します。
+		/// イベントを受け取ったパスがあるとそこで処理が終わります。
+		/// イベントが受け取られたかは返り値で判断できます。
+		/// </summary>
 		public bool Message(string key)
 		{
 			if (Disposed) return false;
+			if (InvokeBeforChild)
+			{
+				if (MessageImpl(key)) return true;
+			}
 			if (m_Calls != null)
 			{
-				foreach (var call in m_Calls)
+				for (int i = 0; i < m_Calls.Count; i++)
 				{
-					bool ret = (call == this) ? MessageImpl(key) : call.Message(key);
-					if (ret) return true;
+					Call call = m_Calls[i];
+					if (call != null && call.Message(key)) return true;
 				}
-				return false;
 			}
-			else {
-				return MessageImpl(key);
+			if (!InvokeBeforChild)
+			{
+				if (MessageImpl(key)) return true;
 			}
+			return false;
 		}
 
 		bool MessageImpl(string key)
 		{
 			if (!Enabled) return false;
-			foreach (var path in Get(key, null))
+			bool ret = false;
+			try
 			{
-				if (path.Invoke(null))
+				m_RemoveLock++;
+				for (int i = 0; i < m_Paths.Count; i++)
 				{
-					return true;
+					PathBase path = m_Paths[i];
+					if (m_Removes != null && m_Removes.Contains(path)) continue;
+					if (path.Key == key && path.Type == null)
+					{
+						if (path.Invoke(null))
+						{
+							ret = true;
+							break;
+						}
+					}
 				}
 			}
-			return false;
+			finally
+			{
+				m_RemoveLock--;
+			}
+			FlushRemove();
+			return ret;
 		}
 
+		/// <summary>
+		/// 引数ありでイベントを実行します。
+		/// イベントを受け取ったパスがあるとそこで処理が終わります。
+		/// イベントが受け取られたかは返り値で判断できます。
+		/// </summary>
 		public bool Message<T>(object key, T prm) => Disposed ? false : Message(ToKey(key), prm);
 
+		/// <summary>
+		/// 引数ありでイベントを実行します。
+		/// イベントを受け取ったパスがあるとそこで処理が終わります。
+		/// イベントが受け取られたかは返り値で判断できます。
+		/// </summary>
 		public bool Message<T>(string key, T prm)
 		{
 			if (Disposed) return false;
+			if (InvokeBeforChild)
+			{
+				if (MessageImpl(key, prm)) return true;
+			}
 			if (m_Calls != null)
 			{
-				foreach (var call in m_Calls)
+				for (int i = 0; i < m_Calls.Count; i++)
 				{
-					bool ret = (call == this) ? MessageImpl(key, prm) : call.Message(key, prm);
-					if (ret) return true;
+					Call call = m_Calls[i];
+					if (call != null && call.Message(key, prm)) return true;
 				}
-				return false;
 			}
-			else
+			if (!InvokeBeforChild)
 			{
-				return MessageImpl(key, prm);
+				if (MessageImpl(key, prm)) return true;
 			}
+			return false;
 		}
 
 		bool MessageImpl<T>(string key, T prm)
 		{
 			if (!Enabled) return false;
-			foreach (var path in Get(key, typeof(T)))
+			bool ret = false;
+			try
 			{
-				if (path.Invoke(prm))
+				m_RemoveLock++;
+				for (int i = 0; i < m_Paths.Count; i++)
 				{
-					return true;
+					PathBase path = m_Paths[i];
+					if (m_Removes != null && m_Removes.Contains(path)) continue;
+					if (path.Key == key && path.Type == typeof(T))
+					{
+						if (path.Invoke(prm))
+						{
+							ret = true;
+							break;
+						}
+					}
 				}
 			}
-			return false;
+			finally
+			{
+				m_RemoveLock--;
+			}
+			FlushRemove();
+			return ret;
 		}
 
+		/// <summary>
+		/// イベントを実行します。
+		/// 全ての登録されたイベントに対して実行を行います。
+		/// 一つでもイベントが受け取られるとtrueを返します。
+		/// </summary>
 		public bool Broadcast(object key) => Disposed ? false : Broadcast(ToKey(key));
 
+		/// <summary>
+		/// イベントを実行します。
+		/// 全ての登録されたイベントに対して実行を行います。
+		/// 一つでもイベントが受け取られるとtrueを返します。
+		/// </summary>
 		public bool Broadcast(string key)
 		{
 			if (Disposed) return false;
+			bool ret = false;
+			if (InvokeBeforChild)
+			{
+				ret |= BroadcastImpl(key);
+			}
 			if (m_Calls != null)
 			{
-				bool ret = false;
-				foreach (var call in m_Calls)
+				for (int i = 0; i < m_Calls.Count; i++)
 				{
-					ret |= (call == this) ? BroadcastImpl(key) : call.Broadcast(key);
+					Call call = m_Calls[i];
+					if (call != null) ret |= call.Broadcast(key);
 				}
-				return ret;
 			}
-			else
+			if (!InvokeBeforChild)
 			{
-				return BroadcastImpl(key);
+				ret |= BroadcastImpl(key);
 			}
+			return ret;
 		}
 
 		bool BroadcastImpl(string key)
 		{
 			if (!Enabled) return false;
 			bool ret = false;
-			foreach (var path in Get(key, null))
+			try
 			{
-				ret |= path.Invoke(null);
+				m_RemoveLock++;
+				for (int i = 0; i < m_Paths.Count; i++)
+				{
+					PathBase path = m_Paths[i];
+					if (m_Removes != null && m_Removes.Contains(path)) continue;
+					if (path.Key == key && path.Type == null)
+					{
+						ret |= path.Invoke(null);
+					}
+				}
 			}
+			finally
+			{
+				m_RemoveLock--;
+			}
+			FlushRemove();
 			return ret;
 		}
 
+		/// <summary>
+		/// 引数ありでイベントを実行します。
+		/// 全ての登録されたイベントに対して実行を行います。
+		/// 一つでもイベントが受け取られるとtrueを返します。
+		/// </summary>
 		public bool Broadcast<T>(object key, T prm) => Disposed ? false : Broadcast(ToKey(key), prm);
 
+		/// <summary>
+		/// 引数ありでイベントを実行します。
+		/// 全ての登録されたイベントに対して実行を行います。
+		/// 一つでもイベントが受け取られるとtrueを返します。
+		/// </summary>
 		public bool Broadcast<T>(string key, T prm)
 		{
 			if (Disposed) return false;
+			bool ret = false;
+			if (InvokeBeforChild)
+			{
+				ret |= BroadcastImpl(key, prm);
+			}
 			if (m_Calls != null)
 			{
-				bool ret = false;
-				foreach (var call in m_Calls)
+				for (int i = 0; i < m_Calls.Count; i++)
 				{
-					ret |= (call == this) ? BroadcastImpl(key, prm) : call.Broadcast(key, prm);
+					Call call = m_Calls[i];
+					if (call != null) ret |= call.Broadcast(key, prm);
 				}
-				return ret;
 			}
-			else
+			if (!InvokeBeforChild)
 			{
-				return BroadcastImpl(key, prm);
+				ret |= BroadcastImpl(key, prm);
 			}
+			return ret;
 		}
 
 		bool BroadcastImpl<T>(string key, T prm)
 		{
 			if (!Enabled) return false;
 			bool ret = false;
-			foreach (var path in Get(key, typeof(T)))
+			try
 			{
-				ret |= path.Invoke(prm);
-			}
-			return ret;
-		}
-
-
-		IEnumerable<PathBase> Get(string key, Type type)
-		{
-			m_Getting = true;
-			for (int i = 0; i < m_Paths.Count; i++)
-			{
-				PathBase path = m_Paths[i];
-				if (m_Removes.Contains(path)) continue;
-				if (path.Key == key && path.Type == type)
+				m_RemoveLock++;
+				for (int i = 0; i < m_Paths.Count; i++)
 				{
-					yield return path;
+					PathBase path = m_Paths[i];
+					if (m_Removes != null && m_Removes.Contains(path)) continue;
+					if (path.Key == key && path.Type == typeof(T))
+					{
+						ret |= path.Invoke(prm);
+					}
 				}
 			}
-			if (m_Removes.Count > 0)
+			finally
+			{
+				m_RemoveLock--;
+			}
+			FlushRemove();
+			return ret;
+		}
+		
+		void FlushRemove()
+		{
+			if (m_RemoveLock == 0 && m_Removes != null && m_Removes.Count > 0)
 			{
 				foreach (var remove in m_Removes)
 				{
@@ -306,13 +461,13 @@ namespace ILib.Caller
 				}
 				m_Removes.Clear();
 			}
-			m_Getting = false;
 		}
 
 		internal void Remove(PathBase path)
 		{
-			if (m_Getting)
+			if (m_RemoveLock > 0)
 			{
+				if (m_Removes == null) m_Removes = new List<PathBase>();
 				m_Removes.Add(path);
 			}
 			else

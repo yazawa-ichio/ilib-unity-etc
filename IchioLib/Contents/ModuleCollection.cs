@@ -73,7 +73,7 @@ namespace ILib.Contents
 			UpdateType();
 		}
 
-		IEnumerator Iterate(ModuleType type, Func<Module, IEnumerator> func)
+		IEnumerator Iterate(ModuleType type, Func<Module, ITriggerAction> func)
 		{
 			if (m_Parent != null)
 			{

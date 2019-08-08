@@ -50,6 +50,7 @@ namespace ILib.Routines
 		{
 			if (m_Behaviour == null) return;
 			m_Behaviour.StopCoroutine(m_Coroutine);
+			m_Behaviour = null;
 			m_Coroutine = null;
 		}
 

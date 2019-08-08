@@ -1,10 +1,10 @@
 {
   "name": "jp.yazawa-ichio.ilib-etc",
   "displayName":  "ILib.ETC",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "unity": "2018.3",
   "description": "Unity Yazawa Ichio Library Package.",
-  "keywords": [ "mvvm" ],
+  "keywords": [ ],
   "Author": "yazawa-ichio (yazawa922473@gmail.com)",
   "dependencies": {
   }

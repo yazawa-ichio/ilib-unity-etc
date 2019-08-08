@@ -6,35 +6,16 @@ namespace ILib
 {
 	using Triggers;
 
-	public interface ITriggerAction : IDisposable
-	{
-		event Action<Exception> OnFail;
-		event Action OnCancel;
-		event Action<bool> OnComplete;
-		bool Fired { get; }
-		Exception Error { get; }
-		bool Canceled { get; }
-		bool OneShot { get; }
-		void Clear();
-		void Cancel();
-		IEnumerator Wait();
-	}
-
-	public interface ITriggerAction<T> : ITriggerAction
-	{
-		event Action<T> OnFire;
-		ITriggerAction<T> Add(Action<T> action);
-		ITriggerAction<T> Remove(Action<T> action);
-		ITriggerAction<T> Add(Action<T, Exception> action);
-		ITriggerAction<T> AddFail(Action<Exception> action);
-		ITriggerAction<T> RemoveFail(Action<Exception> action);
-		ITriggerAction<T> AddComplete(Action<bool> action);
-		ITriggerAction<T> RemoveComplete(Action<bool> action);
-	}
-
+	/// <summary>
+	/// イベントの発火時のアクションを登録します
+	/// </summary>
 	public class TriggerAction<T> : ITriggerAction<T>
 	{
+		/// <summary>
+		/// 実行済みの空のアクションです。
+		/// </summary>
 		public static readonly TriggerAction<T> Empty;
+
 		static TriggerAction()
 		{
 			Empty = new TriggerAction<T>(true);
@@ -87,6 +68,11 @@ namespace ILib
 				m_Action?.Invoke(ret, m_OneShot);
 			}
 			m_Complete?.Invoke(true, m_OneShot);
+		}
+
+		public ITriggerAction Add(Action action)
+		{
+			return Add(x => action?.Invoke());
 		}
 
 		public ITriggerAction<T> Add(Action<T> action)
@@ -167,11 +153,6 @@ namespace ILib
 			return this;
 		}
 
-		public IEnumerator Wait()
-		{
-			while (!Fired) yield return null;
-		}
-
 		public void Clear()
 		{
 			if (Fired && m_OneShot) throw new InvalidOperationException("clear is before Fired");
@@ -197,6 +178,19 @@ namespace ILib
 		{
 			Cancel();
 		}
+
+		#region IEnumerator
+
+		object IEnumerator.Current => null;
+
+		bool IEnumerator.MoveNext()
+		{
+			return !Fired && !Canceled;
+		}
+
+		void IEnumerator.Reset() { }
+
+		#endregion
 
 	}
 }

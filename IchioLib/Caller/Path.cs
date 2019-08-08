@@ -4,6 +4,9 @@ using System.Collections.Generic;
 
 namespace ILib.Caller
 {
+	/// <summary>
+	/// Callに登録したイベントのハンドラーです。
+	/// </summary>
 	public interface IPath : IDisposable
 	{
 		string Key { get; }

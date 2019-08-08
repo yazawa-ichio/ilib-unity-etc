@@ -16,7 +16,6 @@ namespace ILib
 			if (s_Behaviour != null) return s_Behaviour;
 			GameObject obj = new GameObject("AyncTriggerUpdater");
 			GameObject.DontDestroyOnLoad(obj);
-			obj.hideFlags = HideFlags.DontSave;
 			return s_Behaviour = obj.AddComponent<Behaviour>();
 		}
 

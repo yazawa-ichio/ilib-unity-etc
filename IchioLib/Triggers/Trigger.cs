@@ -1,35 +1,45 @@
-﻿using System;
+﻿using ILib.Triggers;
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ILib
 {
-	public class Trigger
+	public partial class Trigger : IHasTriggerAction<bool>
 	{
-		public static IEnumerator Wait(params ITriggerAction[] actions)
+		TriggerAction<bool> m_Action;
+		public ITriggerAction<bool> Action => m_Action;
+
+		public bool Fired => m_Action.Fired;
+
+		public Trigger(bool oneShot = true)
 		{
-			foreach (var action in actions)
-			{
-				while (!action.Fired) yield return null;
-			}
+			m_Action = new TriggerAction<bool>(oneShot);
 		}
 
-		public static IEnumerator Wait(IEnumerable<ITriggerAction> actions)
+		public void Fire()
 		{
-			foreach (var action in actions)
-			{
-				while (!action.Fired) yield return null;
-			}
+			m_Action.Fire(true, null);
 		}
+
+		public void Error(Exception ex)
+		{
+			m_Action.Fire(default, ex);
+		}
+
+		public void Dispose() => m_Action?.Dispose();
+
 	}
 
-	public interface ITrigger<T>
+	/// <summary>
+	/// イベントの発火を制御するクラスです。
+	/// イベントは一度のみ実行と、連続して実行のどちらかを選択して生成します。
+	/// 発火時の処理はアクションを通して実装します。
+	/// </summary>
+	public class Trigger<T> : IHasTriggerAction<T>
 	{
-		ITriggerAction<T> Action { get; }
-	}
 
-	public class Trigger<T> : ITrigger<T>
-	{
 		TriggerAction<T> m_Action;
 		public ITriggerAction<T> Action => m_Action;
 
@@ -47,8 +57,10 @@ namespace ILib
 
 		public void Error(Exception ex)
 		{
-			m_Action.Fire(default(T), ex);
+			m_Action.Fire(default, ex);
 		}
+
+		public void Dispose() => m_Action?.Dispose();
 
 	}
 

@@ -1,47 +1,27 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace ILib.Contents
 {
-	public class RootParam : ContentParam<RootContent>
-	{
-		public bool ParallelBoot { get; set; }
-		public List<IContentParam> BootContents { get; set; } = new List<IContentParam>();
 
-		public void Add<T>(object prm = null) where T : Content
+	internal class RootContent : Content<BootParam>
+	{
+		Func<ITriggerAction> AppendFunc(IContentParam prm)
 		{
-			BootContents.Add(SimpleParam.Create<T>(prm));
+			return () => Append(prm);
 		}
 
-	}
-
-	public class RootContent : Content<RootParam>
-	{
-		IEnumerable<ITriggerAction> BootContents()
-		{
-			foreach (var ctx in Param.BootContents)
-			{
-				yield return Append(ctx).Action;
-			}
-		}
-
-		protected override IEnumerator OnRun()
+		protected override ITriggerAction OnRun()
 		{
 			if (Param.ParallelBoot)
 			{
-				var contents = BootContents().ToArray();
-				yield return Trigger.Wait(contents);
-				foreach (var error in contents.Select(x => x.Error).Where(x => x != null)) {
-					ThrowException(error);
-				}
+				return Trigger.Combine(Param.BootContents.Select((x) => Append(x)).ToArray());
 			}
 			else
 			{
-				foreach (var ctx in BootContents())
-				{
-					yield return ctx.Wait();
-				}
+				return Trigger.Sequential(Param.BootContents.Select(x => AppendFunc(x)));
 			}
 		}
 	}

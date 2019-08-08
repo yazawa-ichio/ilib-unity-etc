@@ -166,16 +166,6 @@ public class CallTest
 		Assert.IsTrue(root.Message(TestEvent.Event1));
 		Assert.AreEqual(ret, 4);
 
-		//優先度を変更したのでcall3のイベントが発火する
-		call3.Priority = 3;
-		Assert.IsTrue(root.Message(TestEvent.Event1));
-		Assert.AreEqual(ret, 3);
-
-		//call3が解放されたのでイベントが呼ばれない
-		call3.Dispose();
-		Assert.IsTrue(root.Message(TestEvent.Event1));
-		Assert.AreEqual(ret, 4);
-
 		//子のサブコールも解放される
 		call1.Dispose();
 		Assert.IsFalse(call5.Message(TestEvent.Event1));

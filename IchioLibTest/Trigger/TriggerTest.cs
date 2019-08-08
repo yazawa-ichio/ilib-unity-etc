@@ -9,7 +9,7 @@ using UnityEngine.TestTools;
 
 public class TriggerTest
 {
-	
+
 
 	[Test]
 	public void TriggerTest1()
@@ -131,7 +131,7 @@ public class TriggerTest
 		//まだ発火されない
 		Assert.IsFalse(action.Fired);
 		//トリガーを待つ
-		yield return action.Wait();
+		yield return action;
 		Assert.IsTrue(trigger.Fired);
 		Assert.AreEqual(val, "fire");
 	}

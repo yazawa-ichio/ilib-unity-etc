@@ -15,7 +15,7 @@ namespace ILib
 		void Cancel();
 	}
 
-	public interface IRoutine<T> : ITrigger<T>, IRoutine
+	public interface IRoutine<T> : IHasTriggerAction<T>, IRoutine
 	{
 	}
 
@@ -41,20 +41,60 @@ namespace ILib
 			m_Trigger.Fire(true);
 		}
 
+		/// <summary>
+		/// Unityのコルーチンのラッパーです。
+		/// 完了と例外を取得できます。
+		/// </summary>
 		public static Routine Start(MonoBehaviour owner, IEnumerator routine) => new Routine(owner, routine);
 
+		/// <summary>
+		/// Unityのコルーチンのラッパーです。
+		/// 完了と例外を取得できます。
+		/// 完了後に再度実行が可能です。
+		/// </summary>
 		public static RepeatRoutine Repeat(MonoBehaviour owner, Func<IEnumerator> routine) => new RepeatRoutine(owner, routine);
 
+		/// <summary>
+		/// Unityのコルーチンのラッパーです。
+		/// IHasResult[T]型を返すイテレータをコンストラクタで指定してください。
+		/// 値が返された時点で完了扱いとなります。
+		/// </summary>
 		public static TaskRoutine<T> Task<T>(MonoBehaviour owner, IEnumerator routine) => new TaskRoutine<T>(owner, routine);
 
+		/// <summary>
+		/// Unityのコルーチンのラッパーです。
+		/// IHasResult型を返すイテレータをコンストラクタで指定してください。
+		/// 値が返されるたびにトリガーが実行されます。
+		/// </summary>
 		public static IterationTaskRoutine IterationTask(MonoBehaviour owner, IEnumerator routine) => new IterationTaskRoutine(owner, routine);
 
+		/// <summary>
+		/// Unityのコルーチンのラッパーです。
+		/// IHasResult型を返すイテレータをコンストラクタで指定してください。
+		/// 値が返されるたびにトリガーが実行されます。
+		/// </summary>
 		public static IterationTaskRoutine IterationTask(MonoBehaviour owner, Func<IEnumerator> routine) => new IterationTaskRoutine(owner, routine);
 
+		/// <summary>
+		/// Unityのコルーチンのラッパーです。
+		/// IHasResult[T]型を返すイテレータをコンストラクタで指定してください。
+		/// 値が返されるたびにトリガーが実行されます。
+		/// </summary>
 		public static IterationTaskRoutine<T> IterationTask<T>(MonoBehaviour owner, IEnumerator routine) => new IterationTaskRoutine<T>(owner, routine);
 
+		/// <summary>
+		/// Unityのコルーチンのラッパーです。
+		/// IHasResult[T]型を返すイテレータをコンストラクタで指定してください。
+		/// 値が返されるたびにトリガーが実行されます。
+		/// </summary>
 		public static IterationTaskRoutine<T> IterationTask<T>(MonoBehaviour owner, Func<IEnumerator> routine) => new IterationTaskRoutine<T>(owner, routine);
 
+		/// <summary>
+		/// Unityのコルーチンのラッパーです。
+		/// IHasResult[T]型を返すイテレータをコンストラクタで指定してください。
+		/// 値が返されるたびにトリガーが実行されます。
+		/// 完了後に再度実行が可能です。
+		/// </summary>
 		public static RepeatTaskRoutine<T> RepeatTask<T>(MonoBehaviour owner, Func<IEnumerator> routine) => new RepeatTaskRoutine<T>(owner, routine);
 
 	}

@@ -19,34 +19,56 @@ namespace ILib.Contents
 		IDispatcher m_Dispatcher;
 		Content m_Root;
 		Content m_Current;
+
+		/// <summary>
+		/// コンテンツを跨ぐ機能を提供するモジュールを管理します
+		/// </summary>
 		public ModuleCollection Modules { get; } = new ModuleCollection();
 
 		internal Call SubCall() => m_Call.SubCall();
+
+		/// <summary>
+		/// コンテンツに実行されるイベントの発火装置
+		/// </summary>
 		public IDispatcher Dispatcher => m_Dispatcher != null ? m_Dispatcher : m_Dispatcher = new Dispatcher(m_Call);
+
+		/// <summary>
+		/// コンテンツの例外をハンドリングします
+		/// </summary>
 		public event Action<Exception> OnException;
 
-		IRoutine<bool> Routine(IEnumerator enumerator, bool throwError)
+		ITriggerAction<bool> Routine(IEnumerator enumerator, bool throwError)
 		{
 			var routine = this.Routine(enumerator);
 			if (throwError) routine.AddFail(ThrowException);
-			return routine;
+			return routine.Action;
 		}
 
-		public IRoutine<bool> Boot(RootParam param, bool throwError = true)
+		/// <summary>
+		/// コントローラーを起動します。
+		/// BootParamで指定したコンテンツが起動します。
+		/// </summary>
+		public ITriggerAction<bool> Boot(BootParam param, bool throwError = true)
 		{
 			return Boot<RootContent>(param, throwError);
 		}
 
-		public IRoutine<bool> Boot<T>(object prm, bool throwError = true) where T : Content, new()
+		/// <summary>
+		/// 指定したコンテンツでコントローラーを起動します。
+		/// </summary>
+		public ITriggerAction<bool> Boot<T>(object prm, bool throwError = true) where T : Content, new()
 		{
 			if (m_Root != null) throw new System.InvalidOperationException("already boot ContentsController");
 			m_Root = new T();
 			return this.Routine(m_Root.Boot(this, null, prm), throwError);
 		}
 
-		public IRoutine<bool> Shutdown()
+		/// <summary>
+		/// コントローラーを終了します。
+		/// </summary>
+		public ITriggerAction<bool> Shutdown()
 		{
-			return this.Routine(ShutdownImpl());
+			return this.Routine(ShutdownImpl()).Action;
 		}
 
 		IEnumerator ShutdownImpl()
@@ -55,17 +77,25 @@ namespace ILib.Contents
 			m_Root = null;
 		}
 
-
+		/// <summary>
+		/// 指定のタイプのコンテンツを取得します。
+		/// </summary>
 		public IContentRef Get<T>() where T : Content
 		{
 			return m_Root.Get<T>();
 		}
 
+		/// <summary>
+		/// 指定のタイプのコンテンツを取得します。
+		/// </summary>
 		public IContentRef Get(Type type)
 		{
 			return m_Root.Get(type);
 		}
 
+		/// <summary>
+		/// 指定のタイプのコンテンツをすべて取得します。
+		/// </summary>
 		public IEnumerable<IContentRef> GetAll<T>() where T : Content
 		{
 			return m_Root.GetAll<T>();
@@ -75,8 +105,14 @@ namespace ILib.Contents
 		{
 			m_Call.Dispose();
 			m_Call = null; ;
+			OnOnDestroyEvent();
 		}
 
+		protected virtual void OnOnDestroyEvent() { }
+
+		/// <summary>
+		/// コントローラーに例外をスローします
+		/// </summary>
 		public void ThrowException(Exception ex)
 		{
 			if (!HandleException(ex))

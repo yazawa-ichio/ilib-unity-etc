@@ -84,7 +84,7 @@ public class RoutineTest
 			var routine = tester.Routine(GetResults());
 			bool ret = false;
 			routine.Action.Add(x => ret = x);
-			yield return routine.Action.Wait();
+			yield return routine.Action;
 			Assert.IsTrue(ret);
 		}
 	}
