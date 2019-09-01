@@ -94,7 +94,7 @@ namespace ILib.Routines
 				}
 				if (obj is IEnumerator)
 				{
-					if (enumerators == null) enumerators = new Stack<IEnumerator>(4);
+					if (enumerators == null) enumerators = new Stack<IEnumerator>(2);
 					enumerators.Push(cur);
 					cur = (IEnumerator)obj;
 				}

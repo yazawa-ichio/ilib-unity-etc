@@ -32,6 +32,11 @@ namespace ILib
 		public static ITriggerAction Combine(params ITriggerAction[] actions)
 		{
 			Trigger trigger = new Trigger();
+			if (actions == null || actions.Length == 0)
+			{
+				trigger.Fire();
+				return trigger.Action;
+			}
 			int count = 0;
 			Action onSuccess = () =>
 			{
@@ -54,12 +59,17 @@ namespace ILib
 		{
 			Trigger<T[]> trigger = new Trigger<T[]>();
 			T[] ret = new T[actions.Length];
+			if (actions == null || actions.Length == 0)
+			{
+				trigger.Fire(ret);
+				return trigger.Action;
+			}
 			int count = 0;
 			for (int i = 0; i < actions.Length; i++)
 			{
 				int index = i;
 				ITriggerAction<T> action = actions[i];
-				action.Add((x)=>
+				action.Add((x) =>
 				{
 					ret[index] = x;
 					count++;
@@ -170,6 +180,7 @@ namespace ILib
 			}
 			return trigger.Action;
 		}
+
 
 	}
 }

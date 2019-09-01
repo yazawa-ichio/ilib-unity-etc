@@ -1,0 +1,113 @@
+﻿using UnityEngine;
+
+namespace ILib.UI
+{
+	/// <summary>
+	/// UIの表示制御を行うクラスです。
+	/// </summary>
+	public abstract class UIControl<TParam> : MonoBehaviour, IControl<TParam>
+	{
+		/// <summary>
+		/// UIが有効かどうかです。
+		/// デフォルトの動作は自身のゲームオブジェクトのアクティブと同じ値になります。
+		/// </summary>
+		public virtual bool IsActive { get => gameObject != null ? gameObject.activeInHierarchy : false; }
+
+		/// <summary>
+		///　Behind時に自身のゲームオブジェクトを非アクティブにするか？
+		/// </summary>
+		public virtual bool IsDeactivateInBehind { get => m_IsDeactivateInBehind; }
+
+		/// <summary>
+		///　Behind時に非表示アニメーション処理を実行するか？
+		///　デフォルトの動作はIsDeactivateInBehindと同じ値になります。
+		/// </summary>
+		public virtual bool IsHideInBehind { get => IsDeactivateInBehind; }
+
+		/// <summary>
+		/// アニメーションによる遷移を行うクラスです。
+		/// </summary>
+		protected ITransition Transition { get; private set; }
+
+		/// <summary>
+		/// 自身を管理する親のコントローラーです。
+		/// </summary>
+		protected IController Controller { get; private set; }
+
+		[SerializeField]
+		bool m_IsDeactivateInBehind = false;
+
+		void IControl.SetController(IController controller)
+		{
+			Controller = controller;
+			Transition = GetTransition();
+		}
+
+		public void Close()
+		{
+			Controller.Close(this);
+		}
+
+		/// <summary>
+		/// アニメーションによる遷移を行うクラスを返します。
+		/// 返さない場合も正常に動きます。
+		/// </summary>
+		protected virtual ITransition GetTransition()
+		{
+			return GetComponent<ITransition>();
+		}
+
+		ITriggerAction IControl.OnCreated(object prm)
+		{
+			Transition?.OnPreCreated();
+			return OnCreated((TParam)prm);
+		}
+
+		ITriggerAction IControl.OnClose() => OnClose();
+
+		ITriggerAction IControl.OnFront(bool open) => OnFront(open);
+
+		ITriggerAction IControl.OnBehind() => OnBehind();
+
+		/// <summary>
+		/// UIが作成された直後に実行されます。
+		/// </summary>
+		protected virtual ITriggerAction OnCreated(TParam prm) => Trigger.Successed;
+
+		/// <summary>
+		/// UIを削除する直前に実行されます。
+		/// デフォルトでは可能であれば閉じるアニメーションを実行します。
+		/// アクティブではない場合は何も行いません。
+		/// </summary>
+		protected virtual ITriggerAction OnClose() => (IsActive && Transition != null) ? Transition.Hide(true) : Trigger.Successed;
+
+		/// <summary>
+		/// UIが最前面に来た際に実行されます。オープン処理かどうかは引数で確認できます。
+		/// デフォルトでは可能であれば開くアニメーションを実行します。
+		/// </summary>
+		protected virtual ITriggerAction OnFront(bool open)
+		{
+			if ((open || IsHideInBehind) && Transition != null)
+			{
+				var show = Transition.Show(open);
+				if (show != null) return show;
+			}
+			return Trigger.Successed;
+		}
+
+		/// <summary>
+		/// UIが最前面から後ろになった際に実行されます。Close時は実行されません。
+		/// デフォルトでは可能であれば開くアニメーションを実行します。
+		/// </summary>
+		protected virtual ITriggerAction OnBehind()
+		{
+			if (IsHideInBehind && Transition != null)
+			{
+				var hide = Transition.Hide(false);
+				if (hide != null) return hide;
+			}
+			return Trigger.Successed;
+		}
+
+	}
+}

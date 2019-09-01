@@ -30,6 +30,11 @@ namespace ILib
 
 		public void Dispose() => m_Action?.Dispose();
 
+		public static explicit operator TriggerAction<bool>(Trigger trigger)
+		{
+			return trigger.m_Action;
+		}
+
 	}
 
 	/// <summary>

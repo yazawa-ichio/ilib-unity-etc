@@ -138,12 +138,45 @@ namespace ILib
 			return trigger.Action;
 		}
 
+		public static ITriggerAction Then(this IHasTriggerAction<ITriggerAction> self)
+		{
+			return self.Action.Then();
+		}
+
+		public static ITriggerAction Then(this ITriggerAction<ITriggerAction> self)
+		{
+			Trigger trigger = new Trigger(oneShot: self.OneShot);
+			self.Add((item1, ex1) =>
+			{
+				if (ex1 != null)
+				{
+					trigger.Error(ex1);
+				}
+				else
+				{
+					item1.Add(trigger.Fire);
+					item1.OnFail += trigger.Error;
+				}
+			});
+			return trigger.Action;
+		}
+
 		public static ITriggerAction<U> Then<T, U>(this IHasTriggerAction<T> self, Func<T, ITriggerAction<U>> func, bool oneShot = true)
 		{
 			return self.Select(func, oneShot: oneShot).Then();
 		}
 
 		public static ITriggerAction<U> Then<T, U>(this ITriggerAction<T> self, Func<T, ITriggerAction<U>> func, bool oneShot = true)
+		{
+			return self.Select(func, oneShot: oneShot).Then();
+		}
+
+		public static ITriggerAction Then<T>(this IHasTriggerAction<T> self, Func<T, ITriggerAction> func, bool oneShot = true)
+		{
+			return self.Select(func, oneShot: oneShot).Then();
+		}
+
+		public static ITriggerAction Then<T>(this ITriggerAction<T> self, Func<T, ITriggerAction> func, bool oneShot = true)
 		{
 			return self.Select(func, oneShot: oneShot).Then();
 		}

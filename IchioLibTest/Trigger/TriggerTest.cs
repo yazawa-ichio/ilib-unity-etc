@@ -6,10 +6,12 @@ using Assert = UnityEngine.Assertions.Assert;
 using ILib;
 using UnityEngine;
 using UnityEngine.TestTools;
+using System.Collections.Generic;
+using System.Linq;
 
 public class TriggerTest
 {
-
+	
 
 	[Test]
 	public void TriggerTest1()
@@ -88,6 +90,43 @@ public class TriggerTest
 			trigger.Fire(i.ToString());
 		}
 		Assert.AreEqual(ret, sum);
+	}
+
+	[Test]
+	public void TriggerTest5()
+	{
+		//複数の結果をまとめる
+		int[] input = new int[] { 1, 5, 7, 3, 5, 7 };
+		var triggers = new List<Trigger<int>>();
+		for (int i = 0; i < input.Length; i++)
+		{
+			triggers.Add(new Trigger<int>());
+		}
+		var combine = Trigger.Combine(triggers.Select(x => x.Action).ToArray());
+		//まだ発火していない。
+		Assert.IsFalse(combine.Fired);
+		combine.Add(x =>
+		{
+			for (int i = 0; i < input.Length; i++)
+			{
+				Assert.AreEqual(x[i], input[i], "入力と同じ");
+			}
+		});
+		for (int i = 0; i < input.Length; i++)
+		{
+			triggers[i].Fire(input[i]);
+			if (i == input.Length - 1)
+			{
+				Assert.IsTrue(combine.Fired);
+			}
+			else
+			{
+				Assert.IsFalse(combine.Fired);
+			}
+		}
+		//引数がなければすぐに発火される
+		Assert.IsTrue(Trigger.Combine().Fired);
+		Assert.IsTrue(Trigger.Combine<bool>().Fired);
 	}
 
 	[UnityTest]
