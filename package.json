@@ -1,8 +1,8 @@
 {
   "name": "jp.yazawa-ichio.ilib-etc",
   "displayName":  "ILib.ETC",
-  "version": "0.2.1",
-  "unity": "2018.3",
+  "version": "0.2.2",
+  "unity": "2018.4",
   "description": "Unity Yazawa Ichio Library Package.",
   "keywords": [ ],
   "Author": "yazawa-ichio (yazawa922473@gmail.com)",

@@ -77,12 +77,10 @@ namespace ILib.Contents
 		{
 			if (m_Parent != null)
 			{
-				foreach (var module in m_Parent)
+				var iterate = m_Parent.Iterate(type, func);
+				while (iterate.MoveNext())
 				{
-					if (module.Type.HasFlag(type))
-					{
-						yield return func(module);
-					}
+					yield return iterate.Current;
 				}
 			}
 			foreach (var module in this)
