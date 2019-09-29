@@ -43,7 +43,31 @@ public class RoutineTest
 		yield return Nest(error);
 	}
 
-	class Tester : IDisposable , IHasRoutineOwner
+	IEnumerator Trigger(bool error, bool returnAction)
+	{
+		Trigger trigger = new Trigger();
+		AsyncTrigger.Time(1).Add(() =>
+		{
+			if (!error)
+			{
+				trigger.Fire();
+			}
+			else
+			{
+				trigger.Error(new Exception("error"));
+			}
+		});
+		if (returnAction)
+		{
+			yield return trigger.Action;
+		}
+		else
+		{
+			yield return trigger;
+		}
+	}
+
+	class Tester : IDisposable, IHasRoutineOwner
 	{
 		class Behaviour : MonoBehaviour { }
 
@@ -269,4 +293,28 @@ public class RoutineTest
 		}
 	}
 
+	[UnityTest]
+	public IEnumerator Test13()
+	{
+		using (var tester = new Tester())
+		{
+			var routine = tester.Routine(Trigger(false, false));
+			yield return routine;
+			Assert.IsNull(routine.Action.Error, routine.Action.Error?.Message ?? "test");
+			Assert.IsTrue(routine.Action.Fired);
+			routine = tester.Routine(Trigger(true, false));
+			yield return routine;
+			Assert.IsNotNull(routine.Action.Error);
+			Assert.IsTrue(routine.Action.Fired);
+
+			routine = tester.Routine(Trigger(false, true));
+			yield return routine;
+			Assert.IsNull(routine.Action.Error, routine.Action.Error?.Message ?? "test");
+			Assert.IsTrue(routine.Action.Fired);
+			routine = tester.Routine(Trigger(true, true));
+			yield return routine;
+			Assert.IsNotNull(routine.Action.Error);
+			Assert.IsTrue(routine.Action.Fired);
+		}
+	}
 }

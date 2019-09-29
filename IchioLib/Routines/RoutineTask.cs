@@ -22,6 +22,9 @@ namespace ILib
 	public class TaskRoutine<T> : RoutineBase, IRoutine<T>
 	{
 		Trigger<T> m_Trigger = new Trigger<T>(oneShot: true);
+
+		ITriggerAction IHasTriggerAction.Action => m_Trigger.Action;
+
 		public ITriggerAction<T> Action => m_Trigger.Action;
 
 		public TaskRoutine(MonoBehaviour behaviour, IEnumerator routine) : base(behaviour, routine) { }
@@ -56,6 +59,7 @@ namespace ILib
 	public class IterationTaskRoutine<T> : RoutineBase, IRoutine<T>
 	{
 		Trigger<T> m_Trigger = new Trigger<T>(oneShot: false);
+		ITriggerAction IHasTriggerAction.Action => m_Trigger.Action;
 		Trigger<bool> m_CompleteTrigger = new Trigger<bool>(oneShot: false);
 
 		public ITriggerAction<T> Action => m_Trigger.Action;
@@ -95,6 +99,7 @@ namespace ILib
 		Trigger<object> m_Trigger = new Trigger<object>(oneShot: false);
 		Trigger<bool> m_CompleteTrigger = new Trigger<bool>(oneShot: true);
 
+		ITriggerAction IHasTriggerAction.Action => m_Trigger.Action;
 		public ITriggerAction<object> Action => m_Trigger.Action;
 		public ITriggerAction<bool> Complete => m_CompleteTrigger.Action;
 
@@ -133,6 +138,7 @@ namespace ILib
 		Trigger<T> m_Trigger = new Trigger<T>(oneShot: false);
 		Trigger<bool> m_CompleteTrigger = new Trigger<bool>(oneShot: false);
 
+		ITriggerAction IHasTriggerAction.Action => m_Trigger.Action;
 		public ITriggerAction<T> Action => m_Trigger.Action;
 		public ITriggerAction<bool> Complete => m_CompleteTrigger.Action;
 

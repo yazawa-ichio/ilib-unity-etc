@@ -27,6 +27,8 @@ namespace ILib
 	{
 		Trigger<bool> m_Trigger = new Trigger<bool>(oneShot: true);
 
+		ITriggerAction IHasTriggerAction.Action => m_Trigger.Action;
+
 		public ITriggerAction<bool> Action => m_Trigger.Action;
 
 		public Routine(MonoBehaviour behaviour, IEnumerator routine) : base(behaviour, routine) { }
@@ -107,6 +109,8 @@ namespace ILib
 	public class RepeatRoutine : RoutineBase, IRoutine<bool>
 	{
 		Trigger<bool> m_Trigger = new Trigger<bool>(oneShot: false);
+
+		ITriggerAction IHasTriggerAction.Action => m_Trigger.Action;
 
 		public ITriggerAction<bool> Action => m_Trigger.Action;
 
