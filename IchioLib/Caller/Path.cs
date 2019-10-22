@@ -15,11 +15,11 @@ namespace ILib.Caller
 	internal abstract class PathBase : IPath
 	{
 		bool m_Disposed;
-		Call m_Parent;
+		EventCall m_Parent;
 		public string Key { get; private set; }
 		public Type Type { get; protected set; }
 
-		internal PathBase(Call call, string key)
+		internal PathBase(EventCall call, string key)
 		{
 			Key = key;
 			m_Parent = call;
@@ -46,7 +46,7 @@ namespace ILib.Caller
 	{
 		Func<bool> m_Func;
 
-		internal Path(Call call, string key, Func<bool> func) : base(call, key)
+		internal Path(EventCall call, string key, Func<bool> func) : base(call, key)
 		{
 			Type = null;
 			m_Func = func;
@@ -72,7 +72,7 @@ namespace ILib.Caller
 	{
 		Func<T, bool> m_Func;
 
-		internal Path(Call call, string key, Func<T, bool> func) : base(call, key)
+		internal Path(EventCall call, string key, Func<T, bool> func) : base(call, key)
 		{
 			Type = typeof(T);
 			m_Func = func;
@@ -104,7 +104,7 @@ namespace ILib.Caller
 	{
 		Func<object, bool> m_Func;
 
-		internal HandlePath(Call call, string key, Func<object, bool> func, Type type) : base(call, key)
+		internal HandlePath(EventCall call, string key, Func<object, bool> func, Type type) : base(call, key)
 		{
 			Type = type;
 			m_Func = func;

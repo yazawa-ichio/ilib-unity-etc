@@ -1,11 +1,12 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System;
 
 namespace ILib.Contents
 {
 	using Caller;
-	using System;
 	using Routines;
+	using Logger;
 
 	public abstract class Content<T> : Content where T : IContentParam
 	{
@@ -19,18 +20,43 @@ namespace ILib.Contents
 		/// <summary>
 		/// 親のコンテンツです。
 		/// </summary>
-		protected IContentRef Parent { get; private set; }
+		protected Content Parent { get; private set; }
 
 		/// <summary>
 		/// 所属するコントローラーです。
 		/// </summary>
 		protected ContentsController Controller { get; private set; }
+
 		LockCollection<Content> m_Children = new LockCollection<Content>();
 
 		public bool HasChildren => m_Children.Count > 0;
 
 		bool m_Shutdown;
 		TransLock m_TransLock = new TransLock();
+		ModalRequest m_ModalRequest;
+
+		/// <summary>
+		/// モーダルコンテンツです。
+		/// </summary>
+		protected bool IsModalContent => m_ModalRequest != null;
+
+		/// <summary>
+		/// モーダルコンテンツを待っています。
+		/// </summary>
+		protected bool IsWaitModalContent
+		{
+			get
+			{
+				foreach (var c in m_Children)
+				{
+					if (c.IsModalContent)
+					{
+						return true;
+					}
+				}
+				return false;
+			}
+		}
 
 		protected object Param { get; private set; }
 
@@ -42,12 +68,17 @@ namespace ILib.Contents
 		/// <summary>
 		/// コンテンツのイベントに関してエラー時に自身のハンドルに例外をスローします
 		/// </summary>
-		protected bool IsSelfThrowErrorIfNeeded { get; set; } = true;
+		protected virtual bool IsSelfThrowErrorIfNeeded { get; set; } = true;
+
+		/// <summary>
+		/// 親のEventCallに親子関係を設定するか？
+		/// </summary>
+		protected virtual bool IsUseSubCall { get; } = false;
 
 		/// <summary>
 		/// イベントの発火装置です。
 		/// </summary>
-		protected Call Call { get; private set; }
+		protected EventCall Call { get; private set; }
 
 		/// <summary>
 		/// イベントの発火装置です。
@@ -64,15 +95,15 @@ namespace ILib.Contents
 		/// <summary>
 		/// 起動処理です。
 		/// </summary>
-		protected virtual ITriggerAction OnBoot() => Trigger.Successed;
+		protected virtual IEnumerator OnBoot() => Trigger.Successed;
 		/// <summary>
 		/// 有効時の処理です。
 		/// </summary>
-		protected virtual ITriggerAction OnEnable() => Trigger.Successed;
+		protected virtual IEnumerator OnEnable() => Trigger.Successed;
 		/// <summary>
 		/// 実行時の処理です。
 		/// </summary>
-		protected virtual ITriggerAction OnRun() => Trigger.Successed;
+		protected virtual IEnumerator OnRun() => Trigger.Successed;
 		/// <summary>
 		/// 実行処理が完了した際の処理です。
 		/// </summary>
@@ -80,11 +111,11 @@ namespace ILib.Contents
 		/// <summary>
 		/// 停止時の処理です。
 		/// </summary>
-		protected virtual ITriggerAction OnSuspend() => Trigger.Successed;
+		protected virtual IEnumerator OnSuspend() => Trigger.Successed;
 		/// <summary>
 		/// 無効時の処理です。
 		/// </summary>
-		protected virtual ITriggerAction OnDisable() => Trigger.Successed;
+		protected virtual IEnumerator OnDisable() => Trigger.Successed;
 		/// <summary>
 		/// 終了直前の処理です。
 		/// </summary>
@@ -92,7 +123,7 @@ namespace ILib.Contents
 		/// <summary>
 		/// 終了時の処理です。
 		/// </summary>
-		protected virtual ITriggerAction OnShutdown() => Trigger.Successed;
+		protected virtual IEnumerator OnShutdown() => Trigger.Successed;
 
 		ITriggerAction<bool> _Routine(IEnumerator enumerator)
 		{
@@ -111,7 +142,7 @@ namespace ILib.Contents
 		/// <summary>
 		/// 自身の子にコンテンツを追加します。
 		/// </summary>
-		protected ITriggerAction<IContentRef> Append(IContentParam prm)
+		public ITriggerAction<Content> Append(IContentParam prm)
 		{
 			return Append(prm.GetContentType(), prm);
 		}
@@ -119,7 +150,7 @@ namespace ILib.Contents
 		/// <summary>
 		/// 自身の子にコンテンツを追加します。
 		/// </summary>
-		protected ITriggerAction<IContentRef> Append<T>(object prm)
+		public ITriggerAction<Content> Append<T>(object prm)
 		{
 			return Append(typeof(T), prm);
 		}
@@ -127,42 +158,125 @@ namespace ILib.Contents
 		/// <summary>
 		/// 自身の子にコンテンツを追加します。
 		/// </summary>
-		protected ITriggerAction<IContentRef> Append(Type type, object prm)
+		public ITriggerAction<Content> Append(Type type, object prm)
 		{
+			if (IsWaitModalContent)
+			{
+				throw new InvalidOperationException("wait modal content do not use Append");
+			}
+			Log.Debug("[ilib-content]start Append(Type:{0},param:{1})", type, prm);
 			var content = (Content)Activator.CreateInstance(type);
 			m_Children.Add(content);
-			return _Routine<IContentRef>(content.Boot(Controller, this, prm));
+			return _Routine<Content>(content.Boot(Controller, this, prm, null));
+		}
+
+		/// <summary>
+		/// モーダルとして子のコンテンツを追加します。
+		/// 追加したコンテンツの結果を待ちます。
+		/// </summary>
+		public ITriggerAction<TResult> Modal<TResult>(IContentParam prm)
+		{
+			return Modal<TResult>(prm.GetContentType(), prm);
+		}
+
+		/// <summary>
+		/// モーダルとして子のコンテンツを追加します。
+		/// 追加したコンテンツの結果を待ちます。
+		/// </summary>
+		public ITriggerAction<TResult> Modal<TResult, UContent>(object prm)
+		{
+			return Modal<TResult>(typeof(UContent), prm);
+		}
+
+		/// <summary>
+		/// モーダルとして子のコンテンツを追加します。
+		/// 追加したコンテンツの結果を待ちます。
+		/// </summary>
+		public ITriggerAction<TResult> Modal<TResult>(Type type, object prm)
+		{
+			if (IsWaitModalContent)
+			{
+				throw new InvalidOperationException("wait modal content do not use Modal");
+			}
+
+			Log.Debug("[ilib-content]start Modal<{0}>(Type:{1},param:{2})", typeof(TResult), type, prm);
+
+			var req = new ModalRequest(typeof(TResult));
+			var ret = req.CreateResultAction<TResult>();
+
+			var content = (Content)Activator.CreateInstance(type);
+			m_Children.Add(content);
+			_Routine<Content>(content.Boot(Controller, this, prm, req));
+			return ret;
 		}
 
 		/// <summary>
 		/// 停止後の復帰処理を行います。
 		/// </summary>
-		protected ITriggerAction<bool> Resume() => _Routine(DoRun());
+		public ITriggerAction<bool> Resume() => _Routine(DoRun());
 
 		/// <summary>
 		/// 停止処理を開始します。
 		/// </summary>
-		protected ITriggerAction<bool> Suspend() => _Routine(DoSuspend());
+		public ITriggerAction<bool> Suspend() => _Routine(DoSuspend());
 
 		/// <summary>
 		/// 終了処理を開始します。
 		/// </summary>
-		protected ITriggerAction<bool> Shutdown() => _Routine(DoShutdown());
+		public ITriggerAction<bool> Shutdown() => _Routine(DoShutdown());
+
+		/// <summary>
+		/// モーダルの結果を通知します。
+		/// </summary>
+		protected void ModalResult<T>(T obj)
+		{
+			m_ModalRequest.SetResult(obj, null);
+			_Routine(DoShutdown());
+		}
+
+		/// <summary>
+		/// モーダルの結果を通知します。
+		/// </summary>
+		protected void ModalResult(Exception error)
+		{
+			m_ModalRequest.SetResult(null, error);
+			_Routine(DoShutdown());
+		}
+
+		/// <summary>
+		/// モーダルの結果を通知します。
+		/// </summary>
+		protected void ModalResult<T>(T obj, Exception error)
+		{
+			m_ModalRequest.SetResult(obj, error);
+			_Routine(DoShutdown());
+		}
 
 		/// <summary>
 		/// 終了処理と指定コンテンツへの遷移を開始します。
 		/// </summary>
-		protected ITriggerAction<IContentRef> Switch(IContentParam prm) => _Routine<IContentRef>(DoSwitch(prm.GetContentType(), prm));
+		public ITriggerAction<Content> Switch(IContentParam prm) => Switch(prm.GetContentType(), prm);
 
 		/// <summary>
 		/// 終了処理と指定コンテンツへの遷移を開始します。
 		/// </summary>
-		protected ITriggerAction<IContentRef> Switch<T>(object prm = null) => _Routine<IContentRef>(DoSwitch(typeof(T), prm));
+		public ITriggerAction<Content> Switch<T>(object prm = null) => Switch(typeof(T), prm);
 
 		/// <summary>
 		/// 終了処理と指定コンテンツへの遷移を開始します。
 		/// </summary>
-		protected ITriggerAction<IContentRef> Switch(Type type, object prm = null) => _Routine<IContentRef>(DoSwitch(type, prm));
+		public ITriggerAction<Content> Switch(Type type, object prm = null)
+		{
+			if (IsWaitModalContent)
+			{
+				throw new InvalidOperationException("wait modal content. not use Switch");
+			}
+			if (m_ModalRequest != null)
+			{
+				throw new InvalidOperationException("modal content not use Switch. use ResultModal.");
+			}
+			return _Routine<Content>(DoSwitch(type, prm));
+		}
 
 		bool HasModule(ModuleType type) => (type & Modules.Type) == type;
 
@@ -173,16 +287,21 @@ namespace ILib.Contents
 			m_Parent = parent;
 			if (m_Parent != null)
 			{
-				Parent = new Ref(m_Parent);
+				Parent = m_Parent;
 			}
-			Call = m_Parent != null ? m_Parent.Call.SubCall() : Controller.SubCall();
+			Call = m_Parent != null ? m_Parent.Call : Controller.Call;
+			if (IsUseSubCall)
+			{
+				Call = Call.SubCall();
+			}
 			Call.Bind(this);
 			Dispatcher = new Dispatcher(Call);
 			Modules = m_Parent != null ? new ModuleCollection(m_Parent.Modules) : new ModuleCollection(Controller.Modules);
 		}
 
-		internal IEnumerator Boot(ContentsController controller, Content parent, object prm)
+		internal IEnumerator Boot(ContentsController controller, Content parent, object prm, ModalRequest modalReq)
 		{
+			m_ModalRequest = modalReq;
 			PreBoot(controller, parent, prm);
 			using (m_TransLock.Lock(TransLockFlag.Boot))
 			{
@@ -191,11 +310,12 @@ namespace ILib.Contents
 				if (HasModule(ModuleType.Boot)) yield return Modules.OnBoot(this) ?? Trigger.Successed;
 				yield return DoRun();
 			}
-			yield return Result<IContentRef>.Create(new Ref(this));
+			yield return Result<Content>.Create(this);
 		}
 
 		IEnumerator DoEnable()
 		{
+			Log.Trace("[ilib-content] DoEnable {0}", this);
 			using (m_TransLock.Lock(TransLockFlag.EnableOrDisable))
 			{
 				if (!Running) yield break;
@@ -212,6 +332,7 @@ namespace ILib.Contents
 
 		IEnumerator DoRun()
 		{
+			Log.Trace("[ilib-content] DoRun {0}", this);
 			using (m_TransLock.Lock(TransLockFlag.RunOrSuspend))
 			{
 				if (m_Shutdown || Running) yield break;
@@ -226,6 +347,7 @@ namespace ILib.Contents
 
 		IEnumerator DoDisable()
 		{
+			Log.Trace("[ilib-content] DoDisable {0}", this);
 			using (m_TransLock.Lock(TransLockFlag.EnableOrDisable))
 			{
 				if (Running) yield break;
@@ -242,6 +364,7 @@ namespace ILib.Contents
 
 		IEnumerator DoSuspend()
 		{
+			Log.Trace("[ilib-content] DoSuspend {0}", this);
 			using (m_TransLock.Lock(TransLockFlag.RunOrSuspend))
 			{
 				if (m_Shutdown || !Running) yield break;
@@ -255,8 +378,22 @@ namespace ILib.Contents
 
 		internal IEnumerator DoShutdown()
 		{
+			Log.Trace("[ilib-content] DoShutdown {0}", this);
+
+			if (m_ModalRequest != null)
+			{
+				UnityEngine.Debug.Assert(m_ModalRequest.HasResult, "modal content unset Result");
+			}
+
 			m_Shutdown = true;
-			Call.Dispose();
+
+			//解除は親に任せる
+			var parent = m_Parent?.Call ?? Controller?.Call ?? null;
+			if (parent != Call)
+			{
+				Call.Dispose();
+			}
+
 			m_Parent?.m_Children.Remove(this);
 			//ブートシーケンスだけは待つ
 			while (m_TransLock.IsLock(TransLockFlag.Boot))
@@ -274,10 +411,14 @@ namespace ILib.Contents
 				yield return OnShutdown() ?? Trigger.Successed;
 				if (HasModule(ModuleType.Shutdown)) yield return Modules.OnShutdown(this) ?? Trigger.Successed;
 			}
+
+			m_ModalRequest?.Dispatch();
 		}
 
 		IEnumerator DoSwitch(Type type, object prm)
 		{
+			Log.Trace("[ilib-content] DoSwitch {0} > {1}, prm:{2}", this, type, prm);
+
 			var next = (Content)Activator.CreateInstance(type);
 			next.PreBoot(Controller, m_Parent, prm);
 
@@ -300,18 +441,18 @@ namespace ILib.Contents
 				yield return next.DoRun() ?? Trigger.Successed;
 			}
 			//遷移先を送信
-			yield return Result<IContentRef>.Create(new Ref(next));
+			yield return Result<Content>.Create(next);
 		}
 
 
 		/// <summary>
 		/// 子に登録されている指定のタイプのコンテンツを取得します。
 		/// </summary>
-		public IContentRef Get<T>(bool recursive = true)
+		public T Get<T>(bool recursive = true) where T : Content
 		{
 			foreach (var child in m_Children)
 			{
-				if (child is T) return new Ref(child);
+				if (child is T ret) return ret;
 			}
 			if (recursive)
 			{
@@ -324,40 +465,17 @@ namespace ILib.Contents
 					}
 				}
 			}
-			return null;
-		}
-
-		/// <summary>
-		/// 子に登録されている指定のタイプのコンテンツを取得します。
-		/// </summary>
-		public IContentRef Get(Type type, bool recursive = true)
-		{
-			foreach (var child in m_Children)
-			{
-				if (type.IsAssignableFrom(child.GetType())) return new Ref(child);
-			}
-			if (recursive)
-			{
-				foreach (var child in m_Children)
-				{
-					var ret = child.Get(type, recursive);
-					if (ret != null)
-					{
-						return ret;
-					}
-				}
-			}
-			return null;
+			return default;
 		}
 
 		/// <summary>
 		/// 子に登録されている指定のタイプのコンテンツをすべて取得します。
 		/// </summary>
-		public IEnumerable<IContentRef> GetAll<T>(bool recursive = true)
+		public IEnumerable<T> GetAll<T>(bool recursive = true)
 		{
 			foreach (var child in m_Children)
 			{
-				if (child is T) yield return new Ref(child);
+				if (child is T ret) yield return ret;
 				if (recursive)
 				{
 					foreach (var c in child.GetAll<T>())
@@ -376,6 +494,7 @@ namespace ILib.Contents
 		/// <param name="exception"></param>
 		protected void ThrowException(Exception exception)
 		{
+			Log.Debug("[ilib-content] this:{0}, ThrowException:{1}", this, exception);
 			bool ret = false;
 			try
 			{

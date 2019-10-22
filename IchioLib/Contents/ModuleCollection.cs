@@ -5,6 +5,8 @@ using System.Collections.Generic;
 
 namespace ILib.Contents
 {
+	using Logger;
+
 	/// <summary>
 	/// モジュールのコレクションです。
 	/// 親が指定されている場合、親のモジュールも実行されます。
@@ -63,17 +65,19 @@ namespace ILib.Contents
 
 		public override void Add(Module child)
 		{
+			Log.Debug("[ilib-content]add module {0}", child);
 			base.Add(child);
 			UpdateType();
 		}
 
 		public override void Remove(Module child)
 		{
+			Log.Debug("[ilib-content]remove module {0}", child);
 			base.Remove(child);
 			UpdateType();
 		}
 
-		IEnumerator Iterate(ModuleType type, Func<Module, ITriggerAction> func)
+		IEnumerator Iterate(ModuleType type, Func<Module, IEnumerator> func)
 		{
 			if (m_Parent != null)
 			{

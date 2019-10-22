@@ -5,8 +5,7 @@ using UnityEngine;
 
 namespace ILib
 {
-	[Obsolete("use Trigger.Time", true)]
-	public static class AsyncTrigger
+	internal static class TriggerBehaviour
 	{
 		class Behaviour : MonoBehaviour { }
 
@@ -14,7 +13,7 @@ namespace ILib
 		static Behaviour GetBehaviour()
 		{
 			if (s_Behaviour != null) return s_Behaviour;
-			GameObject obj = new GameObject("AyncTriggerUpdater");
+			GameObject obj = new GameObject("TriggerBehaviour");
 			GameObject.DontDestroyOnLoad(obj);
 			return s_Behaviour = obj.AddComponent<Behaviour>();
 		}
@@ -47,27 +46,12 @@ namespace ILib
 			return trigger.Action;
 		}
 
-		public static ITriggerAction<bool> Time(MonoBehaviour behaviour, float time)
-		{
-			Trigger<bool> trigger = new Trigger<bool>();
-			Start(behaviour, TimeImpl(time), () => trigger.Fire(true));
-			return trigger.Action;
-		}
-
 		public static ITriggerAction<bool> Realtime(float time)
 		{
 			Trigger<bool> trigger = new Trigger<bool>();
 			Start(GetBehaviour(), RealtimeImpl(time), () => trigger.Fire(true));
 			return trigger.Action;
 		}
-
-		public static ITriggerAction<bool> Realtime(MonoBehaviour behaviour, float time)
-		{
-			Trigger<bool> trigger = new Trigger<bool>();
-			Start(behaviour, RealtimeImpl(time), () => trigger.Fire(true));
-			return trigger.Action;
-		}
-
 
 	}
 

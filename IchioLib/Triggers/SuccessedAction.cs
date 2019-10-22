@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 namespace ILib.Triggers
 {
@@ -83,6 +85,11 @@ namespace ILib.Triggers
 		bool IEnumerator.MoveNext() => false;
 
 		void IEnumerator.Reset() { }
+
+		public TriggerActionAwaiter<T> GetAwaiter()
+		{
+			return new TriggerActionAwaiter<T>(this);
+		}
 
 	}
 }

@@ -1,14 +1,18 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace ILib.Caller
 {
+	using Logger;
+
+	[Obsolete("EventCallerを使用してください")]
+	public class Call : EventCall { }
+
 	/// <summary>
 	/// 登録したイベントの呼び出し手続きを行うクラスです。
 	/// 階層構造を持つことが出来ます。
 	/// </summary>
-	public class Call : IDisposable, IDispatcher
+	public class EventCall : IDisposable, IDispatcher
 	{
 		/// <summary>
 		/// 実際に利用する文字列型のキーに変換します。
@@ -25,8 +29,8 @@ namespace ILib.Caller
 			}
 		}
 
-		Call m_Parent;
-		List<Call> m_Calls;
+		EventCall m_Parent;
+		List<EventCall> m_Calls;
 		List<PathBase> m_Paths = new List<PathBase>();
 		int m_RemoveLock = 0;
 		List<PathBase> m_Removes = new List<PathBase>();
@@ -47,7 +51,7 @@ namespace ILib.Caller
 		/// </summary>
 		public bool Disposed { get; private set; }
 
-		~Call()
+		~EventCall()
 		{
 			Dispose();
 		}
@@ -55,15 +59,16 @@ namespace ILib.Caller
 		/// <summary>
 		/// 子のコールを生成します。
 		/// </summary>
-		public Call SubCall()
+		public EventCall SubCall()
 		{
-			Call call = new Call();
+			Log.Trace("[ilib-event] create subcall.");
+			EventCall call = new EventCall();
 			lock (m_Locker)
 			{
 				call.m_Parent = this;
 				if (m_Calls == null)
 				{
-					m_Calls = new List<Call>(4);
+					m_Calls = new List<EventCall>(4);
 				}
 				for (int i = 0; i < m_Calls.Count; i++)
 				{
@@ -78,8 +83,9 @@ namespace ILib.Caller
 			return call;
 		}
 
-		void Remove(Call call)
+		void Remove(EventCall call)
 		{
+			Log.Trace("[ilib-event] remove call.");
 			lock (m_Locker)
 			{
 				//要素の長さは変えない
@@ -96,6 +102,7 @@ namespace ILib.Caller
 		/// </summary>
 		public void Dispose()
 		{
+			Log.Trace("[ilib-event] dispose.");
 			m_Parent?.Remove(this);
 			m_Paths?.Clear();
 			if (m_Calls == null) return;
@@ -109,13 +116,16 @@ namespace ILib.Caller
 			}
 		}
 
+
 		/// <summary>
 		/// イベントを登録します。
 		/// 解除する場合は、返り値のオブジェクトを解放してください。
 		/// </summary>
-		public IPath Path(object key, Action action)
+		public IDisposable Subscribe(object key, Action action)
 		{
-			var path = new Path(this, ToKey(key), () =>
+			var _key = ToKey(key);
+			Log.Debug("[ilib-event] subscribe key:{0}", _key);
+			var path = new Path(this, _key, () =>
 			{
 				action();
 				return true;
@@ -128,9 +138,21 @@ namespace ILib.Caller
 		/// イベントを登録します。
 		/// 解除する場合は、返り値のオブジェクトを解放してください。
 		/// </summary>
-		public IPath Path<T>(object key, Action<T> action)
+		[Obsolete("Subscribeに置き換えてください")]
+		public IPath Path(object key, Action action)
 		{
-			var path = new Path<T>(this, ToKey(key), (item) =>
+			return Subscribe(key, action) as IPath;
+		}
+
+		/// <summary>
+		/// イベントを登録します。
+		/// 解除する場合は、返り値のオブジェクトを解放してください。
+		/// </summary>
+		public IDisposable Subscribe<T>(object key, Action<T> action)
+		{
+			var _key = ToKey(key);
+			Log.Debug("[ilib-event] subscribe key:{0}({1})", _key, typeof(T));
+			var path = new Path<T>(this, _key, (item) =>
 			{
 				action(item);
 				return true;
@@ -140,14 +162,26 @@ namespace ILib.Caller
 		}
 
 		/// <summary>
+		/// イベントを登録します。
+		/// 解除する場合は、返り値のオブジェクトを解放してください。
+		/// </summary>
+		[Obsolete("Subscribeに置き換えてください")]
+		public IPath Path<T>(object key, Action<T> action)
+		{
+			return Subscribe(key, action) as IPath;
+		}
+
+		/// <summary>
 		/// トリガーとしてイベントを登録します。
 		/// 解除する場合は、トリガーのキャンセルを実行してください。
 		/// </summary>
 		public ITriggerAction<T> Trigger<T>(object key)
 		{
 			if (Disposed) return TriggerAction<T>.Empty;
+			var _key = ToKey(key);
+			Log.Debug("[ilib-event] Trigger key:{0}({1})", _key, typeof(T));
 			Trigger<T> trigger = new Trigger<T>(oneShot: false);
-			var path = new Path<T>(this, ToKey(key), (item) =>
+			var path = new Path<T>(this, _key, (item) =>
 			{
 				trigger.Fire(item);
 				return true;
@@ -164,8 +198,10 @@ namespace ILib.Caller
 		public ITriggerAction<bool> Trigger(object key)
 		{
 			if (Disposed) return TriggerAction<bool>.Empty;
+			var _key = ToKey(key);
+			Log.Debug("[ilib-event] Trigger key:{0}", _key);
 			Trigger<bool> trigger = new Trigger<bool>(oneShot: false);
-			var path = new Path(this, ToKey(key), () =>
+			var path = new Path(this, _key, () =>
 			{
 				trigger.Fire(true);
 				return true;
@@ -183,6 +219,7 @@ namespace ILib.Caller
 		public Handle Bind(object handler)
 		{
 			if (Disposed) return new Handle();
+			Log.Debug("[ilib-event] Bind {0}", handler);
 			Handle handle = new Handle();
 			var entry = HandleEntry.Get(handler.GetType());
 			foreach (var kvp in entry.Methods)
@@ -220,6 +257,9 @@ namespace ILib.Caller
 		public bool Message(string key)
 		{
 			if (Disposed) return false;
+
+			Log.Trace("[ilib-event] Message {0}", key);
+
 			if (InvokeBeforChild)
 			{
 				if (MessageImpl(key)) return true;
@@ -228,7 +268,7 @@ namespace ILib.Caller
 			{
 				for (int i = 0; i < m_Calls.Count; i++)
 				{
-					Call call = m_Calls[i];
+					EventCall call = m_Calls[i];
 					if (call != null && call.Message(key)) return true;
 				}
 			}
@@ -283,6 +323,9 @@ namespace ILib.Caller
 		public bool Message<T>(string key, T prm)
 		{
 			if (Disposed) return false;
+
+			Log.Trace("[ilib-event] Message {0}({1})", key, typeof(T));
+
 			if (InvokeBeforChild)
 			{
 				if (MessageImpl(key, prm)) return true;
@@ -291,7 +334,7 @@ namespace ILib.Caller
 			{
 				for (int i = 0; i < m_Calls.Count; i++)
 				{
-					Call call = m_Calls[i];
+					EventCall call = m_Calls[i];
 					if (call != null && call.Message(key, prm)) return true;
 				}
 			}
@@ -346,6 +389,9 @@ namespace ILib.Caller
 		public bool Broadcast(string key)
 		{
 			if (Disposed) return false;
+
+			Log.Trace("[ilib-event] Broadcast {0}", key);
+
 			bool ret = false;
 			if (InvokeBeforChild)
 			{
@@ -355,7 +401,7 @@ namespace ILib.Caller
 			{
 				for (int i = 0; i < m_Calls.Count; i++)
 				{
-					Call call = m_Calls[i];
+					EventCall call = m_Calls[i];
 					if (call != null) ret |= call.Broadcast(key);
 				}
 			}
@@ -406,6 +452,9 @@ namespace ILib.Caller
 		public bool Broadcast<T>(string key, T prm)
 		{
 			if (Disposed) return false;
+
+			Log.Trace("[ilib-event] Broadcast {0}({1})", key, typeof(T));
+
 			bool ret = false;
 			if (InvokeBeforChild)
 			{
@@ -415,7 +464,7 @@ namespace ILib.Caller
 			{
 				for (int i = 0; i < m_Calls.Count; i++)
 				{
-					Call call = m_Calls[i];
+					EventCall call = m_Calls[i];
 					if (call != null) ret |= call.Broadcast(key, prm);
 				}
 			}
@@ -465,6 +514,9 @@ namespace ILib.Caller
 
 		internal void Remove(PathBase path)
 		{
+
+			Log.Trace("[ilib-event] Remove Path {0}({1})", path.Key, path.Type);
+
 			if (m_RemoveLock > 0)
 			{
 				if (m_Removes == null) m_Removes = new List<PathBase>();

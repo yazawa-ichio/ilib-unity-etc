@@ -21,72 +21,72 @@ namespace ILib.Contents
 		/// コンテンツの初期化直前のイベントです。
 		/// コンテンツ毎に一度しか実行されません。
 		/// </summary>
-		public virtual ITriggerAction OnPreBoot(Content content) => Trigger.Successed;
+		public virtual IEnumerator OnPreBoot(Content content) => Trigger.Successed;
 		/// <summary>
 		/// コンテンツの初期化直後のイベントです。
 		/// コンテンツ毎に一度しか実行されません。
 		/// </summary>
-		public virtual ITriggerAction OnBoot(Content content) => Trigger.Successed;
+		public virtual IEnumerator OnBoot(Content content) => Trigger.Successed;
 		/// <summary>
 		/// コンテンツの終了直前のイベントです。
 		/// コンテンツ毎に一度しか実行されません。
 		/// </summary>
-		public virtual ITriggerAction OnPreShutdown(Content content) => Trigger.Successed;
+		public virtual IEnumerator OnPreShutdown(Content content) => Trigger.Successed;
 		/// <summary>
 		/// コンテンツの終了直後のイベントです。
 		/// コンテンツ毎に一度しか実行されません。
 		/// </summary>
-		public virtual ITriggerAction OnShutdown(Content content) => Trigger.Successed;
+		public virtual IEnumerator OnShutdown(Content content) => Trigger.Successed;
 		/// <summary>
 		/// コンテンツの実行直前のイベントです。
 		/// サスペンドから復帰する際にも呼ばれます。
 		/// </summary>
-		public virtual ITriggerAction OnPreRun(Content content) => Trigger.Successed;
+		public virtual IEnumerator OnPreRun(Content content) => Trigger.Successed;
 		/// <summary>
 		/// コンテンツの実行時のイベントです。
 		/// サスペンドから復帰する際にも呼ばれます。
 		/// </summary>
-		public virtual ITriggerAction OnRun(Content content) => Trigger.Successed;
+		public virtual IEnumerator OnRun(Content content) => Trigger.Successed;
 		/// <summary>
 		/// コンテンツの停止直前のイベントです。
 		/// </summary>
-		public virtual ITriggerAction OnPreSuspend(Content content) => Trigger.Successed;
+		public virtual IEnumerator OnPreSuspend(Content content) => Trigger.Successed;
 		/// <summary>
 		/// コンテンツの停止時のイベントです。
 		/// </summary>
-		public virtual ITriggerAction OnSuspend(Content content) => Trigger.Successed;
+		public virtual IEnumerator OnSuspend(Content content) => Trigger.Successed;
 		/// <summary>
 		/// コンテンツの有効化直前のイベントです。
 		/// 親のコンテンツが有効になった際も実行されます。
 		/// </summary>
-		public virtual ITriggerAction OnPreEnable(Content content) => Trigger.Successed;
+		public virtual IEnumerator OnPreEnable(Content content) => Trigger.Successed;
 		/// <summary>
 		/// コンテンツの有効化直後のイベントです。
 		/// 親のコンテンツが有効になった際も実行されます。
 		/// </summary>
-		public virtual ITriggerAction OnEnable(Content content) => Trigger.Successed;
+		public virtual IEnumerator OnEnable(Content content) => Trigger.Successed;
 		/// <summary>
 		/// コンテンツの無効化直前のイベントです。
 		/// 親のコンテンツが無効になった際も実行されます。
 		/// </summary>
-		public virtual ITriggerAction OnPreDisable(Content content) => Trigger.Successed;
+		public virtual IEnumerator OnPreDisable(Content content) => Trigger.Successed;
 		/// <summary>
 		/// コンテンツの無効化直後のイベントです。
 		/// 親のコンテンツが無効になった際も実行されます。
 		/// </summary>
-		public virtual ITriggerAction OnDisable(Content content) => Trigger.Successed;
+		public virtual IEnumerator OnDisable(Content content) => Trigger.Successed;
 		/// <summary>
 		/// コンテンツを遷移直前のイベントです。
 		/// </summary>
-		public virtual ITriggerAction OnPreSwitch(Content prev, Content next) => Trigger.Successed;
+		public virtual IEnumerator OnPreSwitch(Content prev, Content next) => Trigger.Successed;
 		/// <summary>
 		/// コンテンツを遷移イベントです。
 		/// </summary>
-		public virtual ITriggerAction OnSwitch(Content prev, Content next) => Trigger.Successed;
+		public virtual IEnumerator OnSwitch(Content prev, Content next) => Trigger.Successed;
 		/// <summary>
 		/// コンテンツを遷移完了イベントです。
 		/// </summary>
-		public virtual ITriggerAction OnEndSwitch(Content prev, Content next) => Trigger.Successed;
+		public virtual IEnumerator OnEndSwitch(Content prev, Content next) => Trigger.Successed;
 
 	}
 

@@ -7,6 +7,7 @@ namespace ILib.Contents
 {
 	using Caller;
 	using Routines;
+	using Logger;
 
 
 	/// <summary>
@@ -15,17 +16,24 @@ namespace ILib.Contents
 	/// </summary>
 	public class ContentsController : MonoBehaviour, IHasDispatcher
 	{
-		Call m_Call = new Call();
+		EventCall m_Call = new EventCall();
 		IDispatcher m_Dispatcher;
 		Content m_Root;
-		Content m_Current;
 
 		/// <summary>
 		/// コンテンツを跨ぐ機能を提供するモジュールを管理します
 		/// </summary>
 		public ModuleCollection Modules { get; } = new ModuleCollection();
 
-		internal Call SubCall() => m_Call.SubCall();
+		/// <summary>
+		/// ルートコンテンツ
+		/// </summary>
+		public Content Root => m_Root;
+
+		/// <summary>
+		/// イベントの
+		/// </summary>
+		public EventCall Call => m_Call;
 
 		/// <summary>
 		/// コンテンツに実行されるイベントの発火装置
@@ -58,9 +66,9 @@ namespace ILib.Contents
 		/// </summary>
 		public ITriggerAction<bool> Boot<T>(object prm, bool throwError = true) where T : Content, new()
 		{
-			if (m_Root != null) throw new System.InvalidOperationException("already boot ContentsController");
+			if (m_Root != null) throw new InvalidOperationException("already boot ContentsController");
 			m_Root = new T();
-			return this.Routine(m_Root.Boot(this, null, prm), throwError);
+			return Routine(m_Root.Boot(this, null, prm, null), throwError);
 		}
 
 		/// <summary>
@@ -80,23 +88,15 @@ namespace ILib.Contents
 		/// <summary>
 		/// 指定のタイプのコンテンツを取得します。
 		/// </summary>
-		public IContentRef Get<T>() where T : Content
+		public T Get<T>() where T : Content
 		{
 			return m_Root.Get<T>();
 		}
 
 		/// <summary>
-		/// 指定のタイプのコンテンツを取得します。
-		/// </summary>
-		public IContentRef Get(Type type)
-		{
-			return m_Root.Get(type);
-		}
-
-		/// <summary>
 		/// 指定のタイプのコンテンツをすべて取得します。
 		/// </summary>
-		public IEnumerable<IContentRef> GetAll<T>() where T : Content
+		public IEnumerable<T> GetAll<T>() where T : Content
 		{
 			return m_Root.GetAll<T>();
 		}
@@ -105,10 +105,10 @@ namespace ILib.Contents
 		{
 			m_Call.Dispose();
 			m_Call = null; ;
-			OnOnDestroyEvent();
+			OnDestroyEvent();
 		}
 
-		protected virtual void OnOnDestroyEvent() { }
+		protected virtual void OnDestroyEvent() { }
 
 		/// <summary>
 		/// コントローラーに例外をスローします
@@ -123,7 +123,7 @@ namespace ILib.Contents
 				}
 				else
 				{
-					Debug.LogException(ex);
+					Log.Exception(ex);
 				}
 			}
 		}

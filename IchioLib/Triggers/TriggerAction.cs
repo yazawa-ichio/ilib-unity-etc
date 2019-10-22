@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
 
 namespace ILib
 {
+	using System.Threading;
 	using Triggers;
 
 	/// <summary>
@@ -191,6 +194,18 @@ namespace ILib
 		void IEnumerator.Reset() { }
 
 		#endregion
+
+		public static explicit operator TriggerAction<T>(Task<T> task)
+		{
+			var trigger = new Trigger<T>();
+			Trigger.FromImpl(trigger, task);
+			return trigger.m_Action;
+		}
+
+		public TriggerActionAwaiter<T> GetAwaiter()
+		{
+			return new TriggerActionAwaiter<T>(this);
+		}
 
 	}
 }

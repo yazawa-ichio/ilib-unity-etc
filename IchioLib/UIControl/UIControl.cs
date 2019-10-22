@@ -2,6 +2,8 @@
 
 namespace ILib.UI
 {
+	using Logger;
+
 	/// <summary>
 	/// UIの表示制御を行うクラスです。
 	/// </summary>
@@ -87,6 +89,7 @@ namespace ILib.UI
 		/// </summary>
 		protected virtual ITriggerAction OnFront(bool open)
 		{
+			Log.Trace("[ilib-ui] OnFront:{0}, open:{1}", this, open);
 			if ((open || IsHideInBehind) && Transition != null)
 			{
 				var show = Transition.Show(open);
@@ -101,6 +104,7 @@ namespace ILib.UI
 		/// </summary>
 		protected virtual ITriggerAction OnBehind()
 		{
+			Log.Trace("[ilib-ui] OnBehind:{0}", this);
 			if (IsHideInBehind && Transition != null)
 			{
 				var hide = Transition.Hide(false);

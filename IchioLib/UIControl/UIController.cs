@@ -3,10 +3,11 @@ using System.Collections.Generic;
 using System;
 using UnityEngine;
 using System.Linq;
-using ILib.Triggers;
 
 namespace ILib.UI
 {
+	using Logger;
+
 	/// <summary>
 	/// UIの表示制御の基底クラスです。
 	/// Open・Change・Closeの操作を行えます。
@@ -54,6 +55,7 @@ namespace ILib.UI
 				ret = true;
 				action.Invoke(ui);
 			}
+			Log.Debug("[ilib-ui] Execute<{0}>(), ret:{1}", typeof(T), ret);
 			return ret;
 		}
 
@@ -62,6 +64,7 @@ namespace ILib.UI
 		/// </summary>
 		public bool ExecuteAnyOne<T>(Action<T> action)
 		{
+			Log.Debug("[ilib-ui] ExecuteAnyOne<{0}>(Action<T>)", typeof(T));
 			return ExecuteAnyOne<T>(x =>
 			{
 				action(x);
@@ -74,6 +77,7 @@ namespace ILib.UI
 		/// </summary>
 		public bool ExecuteAnyOne<T>(Func<T,bool> action)
 		{
+			Log.Debug("[ilib-ui] ExecuteAnyOne<{0}>(Func<{0}, bool>)", typeof(T));
 			foreach (var ui in GetActive<T>())
 			{
 				var ret = action.Invoke(ui);
@@ -87,7 +91,13 @@ namespace ILib.UI
 		/// </summary>
 		public bool ExecuteBack()
 		{
-			return ExecuteAnyOne<IExecuteBack>(x => x.TryBack());
+			Log.Trace("[ilib-ui] Do ExecuteBack()");
+			return ExecuteAnyOne<IExecuteBack>(x =>
+			{
+				var ret = x.TryBack();
+				if (ret) Log.Debug("[ilib-ui] ExecuteBack:{0}", x);
+				return ret;
+			});
 		}
 
 		Queue<Action> m_ProcessRequest = new Queue<Action>();
@@ -113,7 +123,11 @@ namespace ILib.UI
 		int m_ProcessCount = 0;
 		protected void StartProcess()
 		{
-			if (m_ProcessCount == 0) OnStartProcess();
+			if (m_ProcessCount == 0)
+			{
+				Log.Trace("[ilib-ui] OnStartProcess");
+				OnStartProcess();
+			}
 			 m_ProcessCount++;
 		}
 
@@ -122,6 +136,7 @@ namespace ILib.UI
 			m_ProcessCount--;
 			if (m_ProcessCount == 0)
 			{
+				Log.Trace("[ilib-ui] OnEndProcess");
 				OnEndProcess();
 				while (m_ProcessRequest.Count > 0 && !HasProcess)
 				{
@@ -168,10 +183,13 @@ namespace ILib.UI
 
 		protected ITriggerAction<UIInstance> Open<T>(string path, TParam prm, UIInstance parent = null) where T : UControl
 		{
+			Log.Debug("[ilib-ui] Open:{0}, prm:{1}, parent:{2}", path, prm, parent);
+
 			StartProcess();
 			var task = this.TaskRoutine<UIInstance>(OpenImpl<T>(path, prm, parent));
 			task.Action.OnComplete += _ =>
 			{
+				Log.Trace("[ilib-ui] Complete Open:{0}", path);
 				EndProcess();
 			};
 			return task.Action;
@@ -233,6 +251,7 @@ namespace ILib.UI
 			}
 			var _releases = controls.Select(x =>
 			{
+				Log.Debug("[ilib-ui] Close:{0}", x);
 				var trigger = x.Control.OnClose();
 				trigger.OnComplete += _ =>
 				{
@@ -265,10 +284,13 @@ namespace ILib.UI
 
 		protected ITriggerAction<UIInstance> Change<T>(string path, TParam prm, UIInstance parent, UIInstance[] releases) where T :UControl
 		{
+			Log.Debug("[ilib-ui] Change:{0}, prm:{1}, parent:{2}", path, prm, parent);
+
 			StartProcess();
 			var task = this.TaskRoutine<UIInstance>(ChangeImpl<T>(path, prm, parent, releases));
 			task.Action.OnComplete += _ =>
 			{
+				Log.Trace("[ilib-ui] Complete Change:{0}", path);
 				EndProcess();
 			};
 			return task.Action;
@@ -345,10 +367,12 @@ namespace ILib.UI
 
 		protected ITriggerAction<bool> Close(UIInstance[] releases, UIInstance front = null)
 		{
+			Log.Debug("[ilib-ui] Close, next front:{0}", front);
 			StartProcess();
 			var task = this.Routine(CloseImpl(releases, front));
 			task.Action.OnComplete += _ =>
 			{
+				Log.Trace("[ilib-ui] Complete Close");
 				EndProcess();
 			};
 			return task.Action;

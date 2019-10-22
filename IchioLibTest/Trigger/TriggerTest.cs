@@ -8,6 +8,7 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 public class TriggerTest
 {
@@ -132,7 +133,7 @@ public class TriggerTest
 	[UnityTest]
 	public IEnumerator TimeTest1()
 	{
-		var trigger = AsyncTrigger.Time(1);
+		var trigger = Trigger.Time(1);
 		var val = "";
 		trigger.Add(x => val = "fire");
 		yield return new WaitForSeconds(0.5f);
@@ -146,7 +147,7 @@ public class TriggerTest
 	[UnityTest]
 	public IEnumerator TimeTest2()
 	{
-		var trigger = AsyncTrigger.Time(1);
+		var trigger = Trigger.Time(1);
 		var val = "";
 		trigger.Add(x => val = "fire");
 		yield return new WaitForSeconds(0.5f);
@@ -192,5 +193,57 @@ public class TriggerTest
 		Assert.AreEqual(val, "");
 		Assert.IsNotNull(ex);
 	}
+
+	[UnityTest]
+	public IEnumerator AsyncTest1()
+	{
+		var action = Trigger.From(_AsyncTest1());
+		yield return new WaitForSeconds(0.1f);
+		Assert.IsFalse(action.Fired);
+		yield return action;
+		Assert.IsTrue(action.Fired);
+	}
+
+	async Task _AsyncTest1()
+	{
+		await Task.Delay(1000);
+	}
+
+	[UnityTest]
+	public IEnumerator AsyncTest2()
+	{
+		bool complete = false;
+		var action = Trigger.From(_AsyncTest2(() => complete = true));
+		Assert.IsFalse(complete);
+		yield return action;
+		Assert.IsTrue(complete);
+	}
+
+#pragma warning disable 4014
+	async Task _AsyncTest2(Action result)
+	{
+		//値ありのawait
+		var ret = await Trigger.Time(1f);
+		Assert.IsTrue(ret);
+
+		var trigger = new Trigger();
+		ITriggerAction action = trigger.Action;
+		Trigger.Time(1f).Add(x => trigger.Fire());
+
+		var tmp = Time.time;
+		//値なしのITriggerActionでもawait出来る
+		await action;
+		Assert.IsTrue(tmp + 0.9f < Time.time);
+
+		//発火済みでも正常に動作する
+		tmp = Time.time;
+		ret = false;
+		ret = await Trigger.Successed;
+		Assert.AreEqual(tmp, Time.time);
+		Assert.IsTrue(ret);
+
+		result();
+	}
+#pragma warning restore 4014
 
 }

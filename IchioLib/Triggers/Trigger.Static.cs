@@ -7,6 +7,9 @@ using ILib.Triggers;
 
 namespace ILib
 {
+	using Logger;
+	using System.Threading.Tasks;
+
 	public partial class Trigger
 	{
 		public static readonly ITriggerAction<bool> Successed = new SuccessedAction<bool>(true);
@@ -181,6 +184,59 @@ namespace ILib
 			return trigger.Action;
 		}
 
+		public static ITriggerAction<bool> Time(float time)
+		{
+			return TriggerBehaviour.Time(time);
+		}
+
+		public static ITriggerAction<bool> Realtime(float time)
+		{
+			return TriggerBehaviour.Realtime(time);
+		}
+
+		public static ITriggerAction From(Task task)
+		{
+			var trigger = new Trigger();
+			FromImpl(trigger, task);
+			return trigger.Action;
+		}
+
+		public static ITriggerAction<T> From<T>(Task<T> task)
+		{
+			var trigger = new Trigger<T>();
+			FromImpl(trigger, task);
+			return trigger.Action;
+		}
+
+		internal static async void FromImpl(Trigger trigger, Task task)
+		{
+			try
+			{
+				if (task != null)
+				{
+					await task;
+				}
+				trigger.Fire();
+			}
+			catch (Exception ex)
+			{
+				Log.Warning("[ilib-trigger] from task error:{0}", ex);
+				trigger.Error(ex);
+			}
+		}
+
+		internal static async void FromImpl<T>(Trigger<T> trigger, Task<T> task)
+		{
+			try
+			{
+				trigger.Fire(await task);
+			}
+			catch (Exception ex)
+			{
+				Log.Warning("[ilib-trigger] from task({0}) error:{1}", typeof(T), ex);
+				trigger.Error(ex);
+			}
+		}
 
 	}
 }

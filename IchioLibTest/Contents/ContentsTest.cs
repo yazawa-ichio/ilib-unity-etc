@@ -82,11 +82,11 @@ public class ContentsTest
 			Append,
 		}
 
-		protected override ITriggerAction OnBoot()
+		protected override IEnumerator OnBoot()
 		{
 			if (Param.BootWait > 0)
 			{
-				return AsyncTrigger.Time(Param.BootWait).Add(x =>
+				return Trigger.Time(Param.BootWait).Add(x =>
 				{
 					Param.Counter.Add("Boot");
 				});
@@ -95,13 +95,13 @@ public class ContentsTest
 			return Trigger.Successed;
 		}
 
-		protected override ITriggerAction OnEnable()
+		protected override IEnumerator OnEnable()
 		{
 			Param.Counter.Add("Enable");
 			return Trigger.Successed;
 		}
 
-		protected override ITriggerAction OnRun()
+		protected override IEnumerator OnRun()
 		{
 			Param.Counter.Add("Run");
 			return Trigger.Successed;
@@ -117,6 +117,13 @@ public class ContentsTest
 		void OnAppend(IContentParam prm)
 		{
 			Append(prm);
+		}
+
+		public ITriggerAction<T> RunModal<T>(Func<T> ret)
+		{
+			ModalParam param = new ModalParam();
+			param.GetResult = () => (object)ret();
+			return Modal<T>(param);
 		}
 
 	}
@@ -155,6 +162,32 @@ public class ContentsTest
 			Resume();
 		}
 
+	}
+
+	class ModalParam : ContentParam<ModalContent>
+	{
+		public Func<object> GetResult;
+	}
+
+	class ModalContent : Content<ModalParam>
+	{
+		protected override IEnumerator OnBoot()
+		{
+			yield return new WaitForSeconds(1f);
+		}
+
+		protected override void OnCompleteRun()
+		{
+			try
+			{
+				var ret = Param.GetResult();
+				ModalResult(ret);
+			}
+			catch (Exception ex)
+			{
+				ModalResult(ex);
+			}
+		}
 	}
 
 	[UnityTest]
@@ -271,25 +304,92 @@ public class ContentsTest
 			BootParam prm = new BootParam();
 			prm.BootContents.Add(new MainTestParam { Counter = counter });
 			yield return tester.Controller.Boot(prm);
-			tester.Message(MainTestContent.Event.Switch, counter);
-			yield return counter.Wait("Run", 2);
+			tester.Message<IContentParam>(MainTestContent.Event.Append, new MainTestParam { Counter = counter });
+			tester.Message<IContentParam>(MainTestContent.Event.Append, new MainTestParam { Counter = counter });
+			tester.Message<IContentParam>(MainTestContent.Event.Append, new MainTestParam { Counter = counter });
+			tester.Message<IContentParam>(MainTestContent.Event.Append, new MainTestParam { Counter = counter });
+			yield return counter.Wait("Run", 5);
 			yield return tester.Close();
 		}
 	}
 
+
 	[UnityTest]
-	public IEnumerator AppendTest2()
+	public IEnumerator ModalTest1()
 	{
 		using (var tester = new Tester())
 		{
-			var counter = new Counter();
 			BootParam prm = new BootParam();
+			var counter = new Counter();
 			prm.BootContents.Add(new MainTestParam { Counter = counter });
 			yield return tester.Controller.Boot(prm);
+
 			var content = tester.Controller.Get<MainTestContent>();
-			tester.Message(MainTestContent.Event.Switch, counter);
-			yield return counter.Wait("Run", 2);
-			yield return tester.Close();
+			var modalRet = content.RunModal(() => 124);
+			yield return modalRet;
+			Assert.AreEqual(124, modalRet.Result);
+
+			modalRet = content.RunModal<int>(() => throw new Exception("error"));
+			yield return modalRet;
+			Assert.IsNotNull(modalRet.Error);
+
+
+		}
+	}
+
+	[UnityTest]
+	public IEnumerator ModalTest2()
+	{
+		using (var tester = new Tester())
+		{
+			BootParam prm = new BootParam();
+			var counter = new Counter();
+			prm.BootContents.Add(new MainTestParam { Counter = counter });
+			yield return tester.Controller.Boot(prm);
+
+
+			var content = tester.Controller.Get<MainTestContent>();
+			var modalRet = content.RunModal(() => true);
+
+			Exception error = null;
+			bool ret = false;
+			try
+			{
+				content.Append<SubContent1>(new SubParam1
+				{
+					Counter = counter
+				}).Add(x => ret = true);
+			}
+			catch (Exception ex)
+			{
+				error = ex;
+			}
+			//モーダル中の追加はエラーになる
+			Assert.IsNotNull(error);
+			Assert.IsFalse(ret);
+
+			error = null;
+
+			try
+			{
+				content.Switch<SubContent1>(new SubParam1
+				{
+					Counter = counter
+				}).Add(x => ret = true);
+			}
+			catch (Exception ex)
+			{
+				error = ex;
+			}
+			//モーダル中の変更はエラーになる
+			Assert.IsNotNull(error);
+			Assert.IsFalse(ret);
+
+			yield return modalRet;
+			Assert.AreEqual(true, modalRet.Result);
+
+
+
 		}
 	}
 

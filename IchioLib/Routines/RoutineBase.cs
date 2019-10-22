@@ -5,6 +5,7 @@ using UnityEngine;
 
 namespace ILib.Routines
 {
+	using Logger;
 
 	public abstract class RoutineBase : CustomYieldInstruction, IDisposable
 	{
@@ -43,6 +44,7 @@ namespace ILib.Routines
 				if (m_Routine == null) throw new InvalidOperationException("すでに実行済みです");
 				m_Current = m_Routine();
 			}
+			Log.Trace("[ilib-routine] start");
 			m_Coroutine = m_Behaviour.StartCoroutine(RoutineImpl());
 		}
 
@@ -52,6 +54,7 @@ namespace ILib.Routines
 			m_Behaviour.StopCoroutine(m_Coroutine);
 			m_Behaviour = null;
 			m_Coroutine = null;
+			Log.Debug("[ilib-routine] cancel");
 		}
 
 
@@ -100,7 +103,7 @@ namespace ILib.Routines
 				}
 				if (obj is IEnumerator)
 				{
-					if (enumerators == null) enumerators = new Stack<IEnumerator>(2);
+					if (enumerators == null) enumerators = StackPool.Borrow();
 					enumerators.Push(cur);
 					cur = (IEnumerator)obj;
 				}
@@ -110,8 +113,14 @@ namespace ILib.Routines
 				}
 			}
 			m_Coroutine = null;
+			if (enumerators != null)
+			{
+				StackPool.Return(enumerators);
+				enumerators = null;
+			}
 			if (error != null)
 			{
+				Log.Warning("[ilib-routine] handle error {0}", error);
 				Fail(error);
 			}
 			else

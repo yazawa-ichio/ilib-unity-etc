@@ -1,6 +1,10 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
+
 
 namespace ILib
 {
@@ -197,7 +201,7 @@ namespace ILib
 				}
 				else
 				{
-					AsyncTrigger.Time(time)
+					TriggerBehaviour.Time(time)
 					.Add(x => trigger.Fire(item))
 					.AddFail(trigger.Error);
 				}
@@ -221,7 +225,7 @@ namespace ILib
 				}
 				else
 				{
-					AsyncTrigger.Realtime(time)
+					TriggerBehaviour.Realtime(time)
 					.Add(x => trigger.Fire(item))
 					.AddFail(trigger.Error);
 				}
@@ -233,7 +237,7 @@ namespace ILib
 		{
 			Trigger<T> trigger = new Trigger<T>(oneShot: self.OneShot);
 			self.Add(trigger);
-			var timeout = realtime ? AsyncTrigger.Realtime(time) : AsyncTrigger.Time(time);
+			var timeout = realtime ? TriggerBehaviour.Realtime(time) : TriggerBehaviour.Time(time);
 			timeout.Add(ret =>
 			{
 				if (!trigger.Action.Fired)
@@ -244,6 +248,32 @@ namespace ILib
 			return trigger.Action;
 		}
 
+		public static TriggerActionAwaiter GetAwaiter(this IHasTriggerAction self)
+		{
+			return new TriggerActionAwaiter(self);
+		}
+
+		public static TriggerActionAwaiter GetAwaiter(this ITriggerAction self)
+		{
+			return new TriggerActionAwaiter(self);
+		}
+
+		public static TriggerActionAwaiter<T> GetAwaiter<T>(this IHasTriggerAction<T> self)
+		{
+			return self.Action.GetAwaiter();
+		}
+
+		public static TriggerActionAwaiter<T> GetAwaiter<T>(this IHasTriggerAction<T> self, CancellationToken cancellation)
+		{
+			cancellation.Register(() => { self.Action.Cancel(); });
+			return self.Action.GetAwaiter();
+		}
+
+		public static TriggerActionAwaiter<T> GetAwaiter<T>(this ITriggerAction<T> self, CancellationToken cancellation)
+		{
+			cancellation.Register(() => { self.Cancel(); });
+			return self.GetAwaiter();
+		}
 
 	}
 

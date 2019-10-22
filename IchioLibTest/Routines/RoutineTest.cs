@@ -46,7 +46,7 @@ public class RoutineTest
 	IEnumerator Trigger(bool error, bool returnAction)
 	{
 		Trigger trigger = new Trigger();
-		AsyncTrigger.Time(1).Add(() =>
+		ILib.Trigger.Time(1).Add(() =>
 		{
 			if (!error)
 			{

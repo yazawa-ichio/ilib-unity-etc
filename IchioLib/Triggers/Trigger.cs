@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace ILib
 {
@@ -54,7 +55,7 @@ namespace ILib
 	public class Trigger<T> : IHasTriggerAction<T>, IEnumerator
 	{
 
-		TriggerAction<T> m_Action;
+		internal TriggerAction<T> m_Action;
 
 		ITriggerAction IHasTriggerAction.Action => m_Action;
 

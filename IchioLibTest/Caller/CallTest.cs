@@ -21,9 +21,9 @@ public class CallTest
 	[Test]
 	public void MessageTest1()
 	{
-		Call call = new Call();
+		EventCall call = new EventCall();
 		int count = 0;
-		var path = call.Path(TestEvent.Event1, () => count++);
+		var path = call.Subscribe(TestEvent.Event1, () => count++);
 		//イベントを発行
 		Assert.IsTrue(call.Message(TestEvent.Event1));
 		Assert.AreEqual(count, 1);
@@ -42,10 +42,10 @@ public class CallTest
 	[Test]
 	public void MessageTest2()
 	{
-		Call call = new Call();
+		EventCall call = new EventCall();
 		int ret = 0;
 		int count = 0;
-		var path = call.Path(TestEvent.Event1, (int val) => { ret = val; count++; });
+		var path = call.Subscribe(TestEvent.Event1, (int val) => { ret = val; count++; });
 		//イベントを発行
 		Assert.IsTrue(call.Message(TestEvent.Event1, 5));
 		Assert.AreEqual(ret, 5);
@@ -80,13 +80,13 @@ public class CallTest
 	[Test]
 	public void MessageTest3()
 	{
-		Call call = new Call();
+		EventCall call = new EventCall();
 		int count1 = 0;
 		int count2 = 0;
 		int count3 = 0;
-		var path1 = call.Path(TestEvent.Event1, () => count1++);
-		var path2 = call.Path(TestEvent.Event1, () => count2++);
-		var path3 = call.Path(TestEvent.Event1, () => count3++);
+		var path1 = call.Subscribe(TestEvent.Event1, () => count1++);
+		var path2 = call.Subscribe(TestEvent.Event1, () => count2++);
+		var path3 = call.Subscribe(TestEvent.Event1, () => count3++);
 
 		//メッセージは一番最初に登録された物が優先される
 		for (int i = 0; i < 5; i++)
@@ -122,7 +122,7 @@ public class CallTest
 	[Test]
 	public void MessageTest4()
 	{
-		Call call = new Call();
+		EventCall call = new EventCall();
 		var trigger = call.Trigger<string>(TestEvent.Event1);
 		string val = "";
 		int valLength = 0;
@@ -138,18 +138,18 @@ public class CallTest
 	[Test]
 	public void SubCallTest()
 	{
-		Call root = new Call();
-		Call call1 = root.SubCall();
-		Call call2 = root.SubCall();
-		Call call3 = root.SubCall();
-		Call call4 = call1.SubCall();
-		Call call5 = call4.SubCall();
+		EventCall root = new EventCall();
+		EventCall call1 = root.SubCall();
+		EventCall call2 = root.SubCall();
+		EventCall call3 = root.SubCall();
+		EventCall call4 = call1.SubCall();
+		EventCall call5 = call4.SubCall();
 		int ret = 0;
-		var path1 = call1.Path(TestEvent.Event1, () => ret = 1);
-		call2.Path(TestEvent.Event1, () => ret = 2);
-		call3.Path(TestEvent.Event1, () => ret = 3);
-		call4.Path(TestEvent.Event1, () => ret = 4);
-		call5.Path(TestEvent.Event1, () => ret = 5);
+		var path1 = call1.Subscribe(TestEvent.Event1, () => ret = 1);
+		call2.Subscribe(TestEvent.Event1, () => ret = 2);
+		call3.Subscribe(TestEvent.Event1, () => ret = 3);
+		call4.Subscribe(TestEvent.Event1, () => ret = 4);
+		call5.Subscribe(TestEvent.Event1, () => ret = 5);
 
 		//メッセージが伝播してcall1優先される
 		Assert.IsTrue(root.Message(TestEvent.Event1));
@@ -191,7 +191,7 @@ public class CallTest
 	public void BindTest()
 	{
 		EventHolder holder = new EventHolder();
-		Call call = new Call();
+		EventCall call = new EventCall();
 		var handle1 = call.Bind(holder);
 
 		//イベント

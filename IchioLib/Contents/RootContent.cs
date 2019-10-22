@@ -13,7 +13,7 @@ namespace ILib.Contents
 			return () => Append(prm);
 		}
 
-		protected override ITriggerAction OnRun()
+		protected override IEnumerator OnRun()
 		{
 			if (Param.ParallelBoot)
 			{

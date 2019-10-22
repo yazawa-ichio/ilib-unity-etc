@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections;
+using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace ILib
 {
@@ -90,5 +92,9 @@ namespace ILib
 		/// 完了時のコールバックを解除します。
 		/// </summary>
 		ITriggerAction<T> RemoveComplete(Action<bool> action);
+		/// <summary>
+		/// Awaiterを返します。
+		/// </summary>
+		TriggerActionAwaiter<T> GetAwaiter();
 	}
 }
