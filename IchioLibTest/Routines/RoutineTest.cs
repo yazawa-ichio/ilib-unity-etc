@@ -59,11 +59,11 @@ public class RoutineTest
 		});
 		if (returnAction)
 		{
-			yield return trigger.Action;
+			return trigger.Action;
 		}
 		else
 		{
-			yield return trigger;
+			return trigger;
 		}
 	}
 
@@ -293,28 +293,4 @@ public class RoutineTest
 		}
 	}
 
-	[UnityTest]
-	public IEnumerator Test13()
-	{
-		using (var tester = new Tester())
-		{
-			var routine = tester.Routine(Trigger(false, false));
-			yield return routine;
-			Assert.IsNull(routine.Action.Error, routine.Action.Error?.Message ?? "test");
-			Assert.IsTrue(routine.Action.Fired);
-			routine = tester.Routine(Trigger(true, false));
-			yield return routine;
-			Assert.IsNotNull(routine.Action.Error);
-			Assert.IsTrue(routine.Action.Fired);
-
-			routine = tester.Routine(Trigger(false, true));
-			yield return routine;
-			Assert.IsNull(routine.Action.Error, routine.Action.Error?.Message ?? "test");
-			Assert.IsTrue(routine.Action.Fired);
-			routine = tester.Routine(Trigger(true, true));
-			yield return routine;
-			Assert.IsNotNull(routine.Action.Error);
-			Assert.IsTrue(routine.Action.Fired);
-		}
-	}
 }

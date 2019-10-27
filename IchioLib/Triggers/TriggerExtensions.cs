@@ -275,6 +275,17 @@ namespace ILib
 			return self.GetAwaiter();
 		}
 
+		public static ITriggerAction ToTrigger(this Task self)
+		{
+			return Trigger.From(self);
+		}
+
+		public static ITriggerAction<T> ToTrigger<T>(this Task<T> self)
+		{
+			return Trigger.From(self);
+		}
+
+
 	}
 
 }

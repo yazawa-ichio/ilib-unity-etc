@@ -125,6 +125,23 @@ namespace ILib.Contents
 		/// </summary>
 		protected virtual IEnumerator OnShutdown() => Trigger.Successed;
 
+		IEnumerator Wrap(IEnumerator enumerator)
+		{
+			var trigger = (enumerator as ITriggerAction) ?? (enumerator as IHasTriggerAction)?.Action ?? null;
+			if (trigger != null)
+			{
+				yield return trigger;
+				if (trigger.Error != null)
+				{
+					throw trigger.Error;
+				}
+			}
+			else
+			{
+				yield return enumerator ?? Trigger.Successed;
+			}
+		}
+
 		ITriggerAction<bool> _Routine(IEnumerator enumerator)
 		{
 			var routine = Controller.Routine(enumerator);
@@ -306,7 +323,7 @@ namespace ILib.Contents
 			using (m_TransLock.Lock(TransLockFlag.Boot))
 			{
 				if (HasModule(ModuleType.PreBoot)) yield return Modules.OnPreBoot(this) ?? Trigger.Successed;
-				yield return OnBoot();
+				yield return Wrap(OnBoot());
 				if (HasModule(ModuleType.Boot)) yield return Modules.OnBoot(this) ?? Trigger.Successed;
 				yield return DoRun();
 			}
@@ -321,7 +338,7 @@ namespace ILib.Contents
 				if (!Running) yield break;
 				Call.Enabled = true;
 				if (HasModule(ModuleType.PreEnable)) yield return Modules.OnPreEnable(this) ?? Trigger.Successed;
-				yield return OnEnable() ?? Trigger.Successed;
+				yield return Wrap(OnEnable());
 				foreach (var child in m_Children)
 				{
 					yield return child.DoEnable() ?? Trigger.Successed;
@@ -339,7 +356,7 @@ namespace ILib.Contents
 				Running = true;
 				if (HasModule(ModuleType.PreRun)) yield return Modules.OnPreRun(this) ?? Trigger.Successed;
 				yield return DoEnable() ?? Trigger.Successed;
-				yield return OnRun() ?? Trigger.Successed;
+				yield return Wrap(OnRun());
 				if (HasModule(ModuleType.Run)) yield return Modules.OnRun(this) ?? Trigger.Successed;
 				OnCompleteRun();
 			}
@@ -357,7 +374,7 @@ namespace ILib.Contents
 				{
 					yield return child.DoDisable() ?? Trigger.Successed;
 				}
-				yield return OnDisable() ?? Trigger.Successed;
+				yield return Wrap(OnDisable());
 				if (HasModule(ModuleType.Disable)) yield return Modules.OnDisable(this) ?? Trigger.Successed;
 			}
 		}
@@ -371,7 +388,7 @@ namespace ILib.Contents
 				Running = false;
 				if (HasModule(ModuleType.PreSuspend)) yield return Modules.OnPreSuspend(this) ?? Trigger.Successed;
 				yield return DoDisable() ?? Trigger.Successed;
-				yield return OnSuspend() ?? Trigger.Successed;
+				yield return Wrap(OnSuspend());
 				if (HasModule(ModuleType.Suspend)) yield return Modules.OnSuspend(this) ?? Trigger.Successed;
 			}
 		}
@@ -408,7 +425,7 @@ namespace ILib.Contents
 				{
 					yield return child.DoShutdown() ?? Trigger.Successed;
 				}
-				yield return OnShutdown() ?? Trigger.Successed;
+				yield return Wrap(OnShutdown());
 				if (HasModule(ModuleType.Shutdown)) yield return Modules.OnShutdown(this) ?? Trigger.Successed;
 			}
 
@@ -432,7 +449,7 @@ namespace ILib.Contents
 			{
 				if (next.HasModule(ModuleType.PreBoot)) yield return next.Modules.OnPreBoot(next) ?? Trigger.Successed;
 
-				yield return next.OnBoot() ?? Trigger.Successed;
+				yield return Wrap(next.OnBoot());
 
 				if (next.HasModule(ModuleType.Boot)) yield return next.Modules.OnBoot(next) ?? Trigger.Successed;
 

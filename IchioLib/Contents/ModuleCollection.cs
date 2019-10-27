@@ -91,7 +91,20 @@ namespace ILib.Contents
 			{
 				if (module.Type.HasFlag(type))
 				{
-					yield return func(module);
+					var enumerator = func(module);
+					var trigger = (enumerator as ITriggerAction) ?? (enumerator as IHasTriggerAction)?.Action ?? null;
+					if (trigger != null)
+					{
+						yield return trigger;
+						if (trigger.Error != null)
+						{
+							throw trigger.Error;
+						}
+					}
+					else
+					{
+						yield return enumerator ?? Trigger.Successed;
+					}
 				}
 			}
 		}

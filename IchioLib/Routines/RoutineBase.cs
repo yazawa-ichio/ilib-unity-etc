@@ -78,12 +78,6 @@ namespace ILib.Routines
 				}
 				if (!moveNext)
 				{
-					var trigger = (cur as ITriggerAction) ?? (cur as IHasTriggerAction)?.Action ?? null;
-					if (trigger != null && trigger.Error != null)
-					{
-						error = trigger.Error;
-						break;
-					}
 					cur = Next(enumerators);
 					continue;
 				}
