@@ -437,6 +437,10 @@ namespace ILib.Contents
 			Log.Trace("[ilib-content] DoSwitch {0} > {1}, prm:{2}", this, type, prm);
 
 			var next = (Content)Activator.CreateInstance(type);
+			if (m_Parent != null)
+			{
+				m_Parent.m_Children.Add(next);
+			}
 			next.PreBoot(Controller, m_Parent, prm);
 
 			if (HasModule(ModuleType.PreSwitch)) yield return Modules.OnPreSwitch(this, next) ?? Trigger.Successed;
