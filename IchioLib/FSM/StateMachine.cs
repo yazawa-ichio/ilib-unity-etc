@@ -13,6 +13,7 @@ namespace ILib.FSM
 	/// ステートの抽象クラスです
 	/// 継承先で実装してください。
 	/// </summary>
+	[UnityEngine.Scripting.Preserve]
 	public abstract class State
 	{
 		object m_Param;
@@ -33,9 +34,9 @@ namespace ILib.FSM
 		/// 遷移イベントを発行します
 		/// 発火したステートと現在が違う場合無効になります。
 		/// </summary>
-		protected bool Transition(int eventId, object prm = null)
+		protected void Transition(int eventId, object prm = null)
 		{
-			return m_stateMachine.Transition(this, eventId, prm);
+			m_stateMachine.Transition(this, eventId, prm);
 		}
 
 		/// <summary>
@@ -43,10 +44,32 @@ namespace ILib.FSM
 		/// 発火したステートと現在が違う場合無効になります。
 		/// Enum暗黙的にintに置き換えられます。
 		/// </summary>
-		protected bool Transition<TEnum>(TEnum eventId, object prm = null) where TEnum : struct, System.IConvertible
+		protected void Transition<TEnum>(TEnum eventId, object prm = null) where TEnum : struct, System.IConvertible
 		{
-			return m_stateMachine.Transition(this, eventId.ToInt32(null), prm);
+			m_stateMachine.Transition(this, eventId.ToInt32(null), prm);
 		}
+
+		/// <summary>
+		/// 遷移イベントを発行します
+		/// 発火したステートと現在が違う場合無効になります。
+		/// 遅延等も含めて即時遷移できない場合はfalseが返ります
+		/// </summary>
+		protected bool StrictTransition(int eventId, object prm = null)
+		{
+			return m_stateMachine.StrictTransition(this, eventId, prm);
+		}
+
+		/// <summary>
+		/// 遷移イベントを発行します
+		/// 発火したステートと現在が違う場合無効になります。
+		/// Enum暗黙的にintに置き換えられます。
+		/// 遅延等も含めて即時遷移できない場合はfalseが返ります
+		/// </summary>
+		protected bool StrictTransition<TEnum>(TEnum eventId, object prm = null) where TEnum : struct, System.IConvertible
+		{
+			return m_stateMachine.StrictTransition(this, eventId.ToInt32(null), prm);
+		}
+
 	}
 
 	/// <summary>
@@ -64,12 +87,19 @@ namespace ILib.FSM
 			public bool ReTranstion;
 		}
 
+		struct TransitionEvent
+		{
+			public int EventId;
+			public object Param;
+		}
+
 		public bool Initialized { get; private set; }
 
 		State m_Current;
 		List<TranstionInfo> m_Transtions = new List<TranstionInfo>();
 		bool m_LockTransition;
 		internal object m_Owner;
+		Queue<TransitionEvent> m_DelayEvent = new Queue<TransitionEvent>();
 
 		public StateMachine(object owner)
 		{
@@ -179,55 +209,116 @@ namespace ILib.FSM
 		/// ステートからの遷移イベントです。
 		/// 発火したステートと現在のステートが違う場合無効になります。
 		/// </summary>
-		internal bool Transition(State from, int eventId, object prm = null)
+		internal void Transition(State from, int eventId, object prm = null)
 		{
 			if (from != m_Current)
 			{
 				Debug.AssertFormat(false, "current state is {0}.", m_Current);
-				return false;
+				return;
 			}
-			return Transition(eventId, prm);
+			Transition(eventId, prm);
 		}
 
 		/// <summary>
 		/// 遷移イベントを発行します
 		/// 列挙型は暗黙的にintに置き換えられます。
 		/// </summary>
-		public bool Transition<TEnum>(TEnum eventId, object prm = null) where TEnum : struct, System.IConvertible
+		public void Transition<TEnum>(TEnum eventId, object prm = null) where TEnum : struct, System.IConvertible
 		{
-			return Transition(eventId.ToInt32(null), prm);
+			Transition(eventId.ToInt32(null), prm);
 		}
 
 		/// <summary>
 		/// 遷移イベントを発行します
 		/// </summary>
-		public bool Transition(int eventId, object prm = null)
+		public void Transition(int eventId, object prm = null)
 		{
 			if (!Initialized) throw new System.InvalidOperationException("use Init().");
-			//遅延処理は面倒なのでロックを掛けてお茶を濁す
 			if (m_LockTransition)
 			{
-				Debug.Assert(false);
+				m_DelayEvent.Enqueue(new TransitionEvent { EventId = eventId, Param = prm });
+			}
+			else
+			{
+				try
+				{
+					m_LockTransition = true;
+					TransitionImpl(eventId, prm);
+					while (m_DelayEvent.Count > 0)
+					{
+						var e = m_DelayEvent.Dequeue();
+						TransitionImpl(e.EventId, e.Param);
+					}
+				}
+				finally
+				{
+					m_LockTransition = false;
+				}
+			}
+		}
+
+		/// <summary>
+		/// ステートからの遷移イベントです。
+		/// 発火したステートと現在のステートが違う場合無効になります。
+		/// 遅延等も含めて即時遷移できない場合はfalseが返ります
+		/// </summary>
+		internal bool StrictTransition(State from, int eventId, object prm = null)
+		{
+			if (from != m_Current)
+			{
+				Debug.AssertFormat(false, "current state is {0}.", m_Current);
 				return false;
 			}
+			return StrictTransition(eventId, prm);
+		}
+
+		/// <summary>
+		/// 遷移イベントを発行します
+		/// 列挙型は暗黙的にintに置き換えられます。
+		/// 遅延等も含めて即時遷移できない場合はfalseが返ります
+		/// </summary>
+		public bool StrictTransition<TEnum>(TEnum eventId, object prm = null) where TEnum : struct, System.IConvertible
+		{
+			return StrictTransition(eventId.ToInt32(null), prm);
+		}
+
+		/// <summary>
+		/// 遷移イベントを発行します
+		/// 遅延等も含めて即時遷移できない場合はfalseが返ります
+		/// </summary>
+		public bool StrictTransition(int eventId, object prm = null)
+		{
+			if (!Initialized) throw new System.InvalidOperationException("use Init().");
+			if (m_LockTransition)
+			{
+				return false;
+			}
+			else
+			{
+				try
+				{
+					m_LockTransition = true;
+					return TransitionImpl(eventId, prm);
+				}
+				finally
+				{
+					m_LockTransition = false;
+				}
+			}
+		}
+
+		bool TransitionImpl(int eventId, object prm = null)
+		{
 			//遷移条件は後ろからなめる
 			for (int i = m_Transtions.Count - 1; i >= 0; i--)
 			{
 				TranstionInfo info = m_Transtions[i];
 				if (info.EventId == eventId && (info.From == null || info.From == m_Current) && (info.To != m_Current || info.ReTranstion))
 				{
-					try
-					{
-						m_LockTransition = true;
-						var prev = m_Current;
-						prev.DoExit();
-						m_Current = info.To;
-						m_Current.DoEnter(prm);
-					}
-					finally
-					{
-						m_LockTransition = false;
-					}
+					var prev = m_Current;
+					prev.DoExit();
+					m_Current = info.To;
+					m_Current.DoEnter(prm);
 					return true;
 				}
 			}
@@ -245,6 +336,28 @@ namespace ILib.FSM
 			}
 		}
 
+		/// <summary>
+		/// 現在のステートが指定型であれば取得します。
+		/// </summary>
+		public T Get<T>() where T : class
+		{
+			if (Initialized && m_Current != null)
+			{
+				return m_Current as T;
+			}
+			return default;
+		}
+
+		/// <summary>
+		/// 現在のステートが指定型であれば処理を実行します。
+		/// </summary>
+		public void Execute<T>(System.Action<T> action) where T : class
+		{
+			if (Initialized && m_Current is T target)
+			{
+				action(target);
+			}
+		}
 
 	}
 

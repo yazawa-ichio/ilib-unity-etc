@@ -8,7 +8,7 @@ using ILib.FSM.Provider;
 using NUnit.Framework;
 using Assert = UnityEngine.Assertions.Assert;
 
-public class StateMachineTest 
+public class StateMachineTest
 {
 
 	public enum StateEvent
@@ -61,11 +61,11 @@ public class StateMachineTest
 		var stateMachine = StateMachineProvider<AutoStateBase>.Create(null);
 		//2に遷移
 		Check(0, 1, 0, 0);
-		ret = stateMachine.Transition(StateEvent.Event2);
+		ret = stateMachine.StrictTransition(StateEvent.Event2);
 		//直接遷移は基本的に同じステートには遷移しない
 		Check(0, 1, 0, 0);
 		Assert.IsFalse(ret);
-		ret = stateMachine.Transition(StateEvent.Event3);
+		ret = stateMachine.StrictTransition(StateEvent.Event3);
 		//ステート3に遷移する
 		Check(0, 1, 1, 0);
 		Assert.IsTrue(ret);
@@ -76,7 +76,7 @@ public class StateMachineTest
 		//ステート1に遷移する
 		Check(1, 1, 2, 0);
 		//存在しないイベントを発行
-		ret = stateMachine.Transition(StateEvent.Event5);
+		ret = stateMachine.StrictTransition(StateEvent.Event5);
 		Assert.IsFalse(ret);
 	}
 
