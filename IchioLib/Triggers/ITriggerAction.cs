@@ -6,7 +6,7 @@ using System.Threading;
 namespace ILib
 {
 
-	public interface ITriggerAction :  IDisposable, IEnumerator
+	public interface ITriggerAction : IDisposable, IEnumerator
 	{
 		/// <summary>
 		/// 失敗時のコールバックです。

@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 public class TriggerTest
 {
-	
+
 
 	[Test]
 	public void TriggerTest1()
